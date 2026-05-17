@@ -1,0 +1,106 @@
+{
+  "name": "skillpilot-lifecycle",
+  "displayName": "SkillPilot Lifecycle",
+  "description": "Status-bar TTL and MCP cleanup for SkillPilot skill sessions (begin_task / load). Register from .skillpilot/session.json or clipboard.",
+  "version": "0.2.0",
+  "publisher": "skillpilot",
+  "license": "ISC",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Machine Learning"
+  ],
+  "keywords": [
+    "skillpilot",
+    "mcp",
+    "cursor",
+    "agent",
+    "skills",
+    "cleanup",
+    "ttl",
+    "model context protocol"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": {
+      "supported": true
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "skillpilot.registerActiveSession",
+        "title": "Register Active Session",
+        "category": "SkillPilot",
+        "enablement": "workspaceFolderCount != 0"
+      },
+      {
+        "command": "skillpilot.registerFromClipboard",
+        "title": "Register Active Skill from Load JSON",
+        "category": "SkillPilot"
+      },
+      {
+        "command": "skillpilot.registerActiveSkill",
+        "title": "Register Active Skill…",
+        "category": "SkillPilot"
+      },
+      {
+        "command": "skillpilot.dismissActiveSkill",
+        "title": "Dismiss Active Skill (Cleanup Now)",
+        "category": "SkillPilot",
+        "icon": "$(close)"
+      }
+    ],
+    "configuration": {
+      "title": "SkillPilot",
+      "properties": {
+        "skillpilot.serverEntry": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Absolute path to SkillPilot `dist/index.js`. Required for MCP cleanup. Repo root = **parent of `dist/`** (used to find `.skillpilot/session.json`)."
+        },
+        "skillpilot.skillRoot": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Absolute path to the `skills/` folder. Optional; repo root = parent of `skills/`. Used when resolving `.skillpilot/session.json`."
+        },
+        "skillpilot.autoCleanupOnTtl": {
+          "type": "boolean",
+          "default": true,
+          "description": "Call MCP cleanup when the status-bar TTL expires."
+        },
+        "skillpilot.promptBeforeCleanup": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show a confirmation dialog before running cleanup when TTL expires."
+        },
+        "skillpilot.ttlMsOverride": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "If greater than 0, use this TTL in milliseconds instead of the value from load/begin_task."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package --no-dependencies --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/node": "^25.7.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.7.1",
+    "typescript": "^6.0.3"
+  }
+}

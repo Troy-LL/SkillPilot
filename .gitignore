@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.skillpilot/
+extension/node_modules/
+extension/out/
+*.log
+.DS_Store

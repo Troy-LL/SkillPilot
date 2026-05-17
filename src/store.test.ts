@@ -1,0 +1,58 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { describe, it } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { buildIndex, loadSkillBody } from './store.js';
+
+const repoSkills = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'skills');
+
+describe('buildIndex', () => {
+  it('indexes catalog skills in repo', () => {
+    const index = buildIndex(repoSkills);
+    assert.equal(index.ok, true);
+    if (!index.ok) return;
+    assert.ok(index.skills.length >= 2);
+    assert.ok(index.skills.some((s) => s.id === 'find-skills'));
+    assert.ok(index.skills.some((s) => s.id === 'com-skillpilot-orchestrator'));
+  });
+
+  it('fails on folder vs id mismatch', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-test-'));
+    try {
+      const dir = path.join(tmp, 'folder-a');
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'SKILL.md'),
+        `---
+id: folder-b
+title: T
+summary: S
+---
+body
+`,
+        'utf8',
+      );
+      const index = buildIndex(tmp);
+      assert.equal(index.ok, false);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('loadSkillBody', () => {
+  it('loads a known skill', () => {
+    const { meta, body } = loadSkillBody(repoSkills, 'com-skillpilot-orchestrator');
+    assert.equal(meta.id, 'com-skillpilot-orchestrator');
+    assert.match(body, /begin_task/);
+  });
+
+  it('throws actionable error for unknown id', () => {
+    assert.throws(
+      () => loadSkillBody(repoSkills, 'no-such-skill-id'),
+      (e: Error) => e.message.includes('Unknown skill_id') && e.message.includes('list tool'),
+    );
+  });
+});

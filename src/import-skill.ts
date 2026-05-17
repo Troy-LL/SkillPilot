@@ -1,0 +1,177 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { parse as parseYaml } from 'yaml';
+import { parseSkillMarkdown } from './parse.js';
+import type { SkillFrontMatter } from './parse.js';
+import { isValidSkillId } from './validate.js';
+import { buildIndex } from './store.js';
+
+const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+
+export type ImportSkillOptions = {
+  /** Override canonical skill id (must match skill-rules §2). */
+  id?: string;
+  /** Optional audit field (skill-rules §10). */
+  source?: string;
+};
+
+export type ImportSkillResult = {
+  skill_id: string;
+  dest_path: string;
+  warnings: string[];
+};
+
+function slugFromFolder(folder: string): string {
+  return folder
+    .toLowerCase()
+    .replace(/_/g, '-')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function normalizeId(candidate: string, folder: string): string {
+  const raw = candidate.trim() || folder;
+  const slug = slugFromFolder(raw);
+  if (!isValidSkillId(slug)) {
+    throw new Error(
+      `Cannot derive valid skill_id from "${raw}". Provide --id matching skill-rules §2.`,
+    );
+  }
+  return slug;
+}
+
+/** Map ecosystem front matter (name/description) into SkillPilot required fields. */
+function buildFrontMatterBlock(meta: SkillFrontMatter, body: string, source?: string): string {
+  const lines = ['---', `id: ${meta.id}`, `title: ${JSON.stringify(meta.title)}`];
+  lines.push(`summary: ${JSON.stringify(meta.summary)}`);
+  if (meta.tags?.length) {
+    lines.push('tags:');
+    for (const t of meta.tags) lines.push(`  - ${t}`);
+  }
+  if (meta.triggers?.length) {
+    lines.push('triggers:');
+    for (const t of meta.triggers) lines.push(`  - ${JSON.stringify(t)}`);
+  }
+  if (meta.version) lines.push(`version: ${meta.version}`);
+  if (meta.clients?.length) {
+    lines.push('clients:');
+    for (const c of meta.clients) lines.push(`  - ${c}`);
+  }
+  if (source) lines.push(`source: ${JSON.stringify(source)}`);
+  lines.push('---', '');
+  return lines.join('\n') + body.replace(/^\n+/, '');
+}
+
+function readAndNormalizeSource(
+  sourceFile: string,
+  folderName: string,
+  options: ImportSkillOptions,
+): { meta: SkillFrontMatter; body: string; warnings: string[] } {
+  const warnings: string[] = [];
+  const raw = fs.readFileSync(sourceFile, 'utf8');
+  const m = raw.match(FRONT_MATTER);
+  if (!m?.[1] || m[2] === undefined) {
+    throw new Error('Source SKILL.md must have YAML front matter');
+  }
+  let data: unknown;
+  try {
+    data = parseYaml(m[1]);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`Invalid YAML: ${msg}`);
+  }
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Front matter must be a mapping');
+  }
+  const rec = data as Record<string, unknown>;
+  const id = normalizeId(options.id ?? String(rec['id'] ?? rec['name'] ?? folderName), folderName);
+  const title =
+    typeof rec['title'] === 'string' && rec['title'].length > 0
+      ? rec['title']
+      : typeof rec['name'] === 'string'
+        ? rec['name']
+        : folderName;
+  let summary =
+    typeof rec['summary'] === 'string' && rec['summary'].length > 0
+      ? rec['summary']
+      : typeof rec['description'] === 'string'
+        ? rec['description'].split('\n')[0]!.slice(0, 300)
+        : title;
+  if (summary.length > 300) summary = summary.slice(0, 297) + '...';
+  if (!rec['summary'] && rec['description']) {
+    warnings.push('mapped description → summary');
+  }
+  if (!rec['id'] && rec['name']) {
+    warnings.push('mapped name → id');
+  }
+  const draft: SkillFrontMatter = {
+    id,
+    title,
+    summary,
+    tags: Array.isArray(rec['tags']) ? (rec['tags'] as string[]) : undefined,
+    triggers: Array.isArray(rec['triggers']) ? (rec['triggers'] as string[]) : undefined,
+    version: typeof rec['version'] === 'string' ? rec['version'] : undefined,
+    clients: Array.isArray(rec['clients']) ? (rec['clients'] as string[]) : undefined,
+  };
+  const body = m[2];
+  const { meta, body: validatedBody } = parseSkillMarkdown(
+    buildFrontMatterBlock(draft, body, options.source),
+    id,
+  );
+  return { meta, body: validatedBody, warnings };
+}
+
+export function resolveRepoRoot(skillRoot: string, repoRootArg?: string): string {
+  if (repoRootArg) return path.resolve(repoRootArg);
+  const root = path.resolve(skillRoot);
+  return path.basename(root) === 'skills' ? path.dirname(root) : root;
+}
+
+export function importSkillFromPath(
+  sourceSkillMd: string,
+  skillRoot: string,
+  options: ImportSkillOptions = {},
+): ImportSkillResult {
+  const sourceAbs = path.resolve(sourceSkillMd);
+  if (!fs.existsSync(sourceAbs)) {
+    throw new Error(`Source not found: ${sourceAbs}`);
+  }
+  const folderName = path.basename(path.dirname(sourceAbs));
+  const { meta, body, warnings } = readAndNormalizeSource(sourceAbs, folderName, options);
+  const destDir = path.join(path.resolve(skillRoot), meta.id);
+  const destFile = path.join(destDir, 'SKILL.md');
+  if (fs.existsSync(destFile) && !options.id) {
+    throw new Error(
+      `Skill already exists at ${destFile}. Pass explicit id or remove the folder first.`,
+    );
+  }
+  const index = buildIndex(skillRoot);
+  if (index.ok && index.paths.has(meta.id) && !fs.existsSync(destFile)) {
+    throw new Error(`Duplicate skill_id in store: ${meta.id}`);
+  }
+  fs.mkdirSync(destDir, { recursive: true });
+  const content = buildFrontMatterBlock(meta, body, options.source);
+  fs.writeFileSync(destFile, content, 'utf8');
+  parseSkillMarkdown(content, meta.id);
+  return { skill_id: meta.id, dest_path: destFile, warnings };
+}
+
+export function importSkillFromAgents(
+  repoRoot: string,
+  agentsFolder: string,
+  skillRoot: string,
+  options: ImportSkillOptions = {},
+): ImportSkillResult {
+  const source = path.join(
+    path.resolve(repoRoot),
+    '.agents',
+    'skills',
+    agentsFolder,
+    'SKILL.md',
+  );
+  return importSkillFromPath(source, skillRoot, {
+    ...options,
+    source: options.source ?? `agents:${agentsFolder}`,
+  });
+}

@@ -1,0 +1,32 @@
+{
+  "name": "skillpilot",
+  "version": "1.0.0",
+  "description": "SkillPilot MCP — filesystem skill router (list / select / load / cleanup)",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "mcp": "node dist/index.js",
+    "test": "npm run build && node --test dist/*.test.js",
+    "smoke": "node scripts/mcp-smoke.mjs",
+    "test:session-end-hook": "node scripts/test-session-end-hook.mjs",
+    "skills:add": "node scripts/skills-add-local.mjs",
+    "skills:import": "node scripts/import-skill.mjs"
+  },
+  "bin": {
+    "skillpilot-mcp": "dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.7.0",
+    "typescript": "^6.0.3"
+  }
+}
