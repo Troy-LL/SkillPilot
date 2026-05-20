@@ -1,100 +1,202 @@
 # SkillPilot
 
-SkillPilot is a **stdio MCP server** that routes filesystem-backed agent skills with **token-efficient** injection: Tier 1 summaries for selection, Tier 2 bodies shaped on load. Lifecycle tools **`begin_task`** / **`end_task`** pair with **`skill_plan`** for plan-before-execute workflows.
+**The right skill, at the right time — without filling your context window.**
 
-**Canonical skill root:** **`.agents/skills/`** (project-local `npx skills add`, no `-g`). Optional **`skills/`** is a legacy ingest target only — see **`docs/SKILLS_CATALOG.md`**.
+SkillPilot is an open-source MCP server that routes agent skills from your filesystem. It picks the best skill for each task, injects only what you need, and cleans up when the work is done. Built for Cursor, Claude Desktop, and any MCP-compatible host.
 
-**Planning & spec:** **`skillpilot_docs/`** (ARCHITECTURE, SPEC, TOKEN_COMPRESSION, ROADMAP). **Context engineering ladder:** **`docs/CONTEXT_ENGINEERING.md`**. **Autonomous usage:** **`docs/AUTONOMOUS_USAGE.md`** and **`.cursor/rules/skillpilot-lifecycle.mdc`**.
+---
 
-## Requirements
+## Why SkillPilot?
 
-- **Node.js 18+**
+Agents work better with skills — structured playbooks for code review, MCP development, UI design, and more. But dumping entire skill libraries into every turn is expensive: wrong skills add noise, large bodies burn tokens, and stale guidance lingers after a task ends.
 
-## Install and build
+SkillPilot treats context as a budget:
+
+- **Select on summaries, not full files** — routing reads ~60 tokens per skill, not thousands.
+- **Inject with depth control** — summary, compact, section, or full body depending on what you need.
+- **Plan before you execute** — map which skills a multi-step goal needs before loading anything heavy.
+- **End tasks cleanly** — `end_task` evicts injected guidance so the next conversation stays focused.
+
+Research on skill-augmented agents (e.g. [Skill0](https://arxiv.org/abs/2604.02268)) shows filtered, summary-first routing can cut per-step token cost sharply versus naïve full injection — often with better task alignment. SkillPilot brings that discipline to inference-time MCP workflows.
+
+---
+
+## How it works
+
+```text
+Your prompt
+    │
+    ▼
+skill_plan (optional)     ← Tier 1 only: which skills, in what order
+    │
+    ▼
+begin_task                  ← match + shaped inject + session file
+    │
+    ▼
+Agent works with skill body
+    │
+    ▼
+end_task                    ← cleanup + clear session
+```
+
+Skills live as folders under **`.agents/skills/<skill-id>/SKILL.md`**. SkillPilot-specific metadata (tags, triggers, inject defaults) can live in **`.agents/skills-meta/<skill-id>.yaml`** so ecosystem skills survive `npx skills update` without hand-editing upstream files.
+
+---
+
+## Features
+
+| Capability | What you get |
+|------------|----------------|
+| **Heuristic routing** | Tag and trigger matching on Tier 1 metadata; no LLM required for selection |
+| **Token budgets** | Exclude skills whose bodies exceed your remaining context headroom |
+| **Inject modes** | `summary` · `compact` · `sections` · `full` — escalate only when stuck |
+| **Task lifecycle** | `begin_task` / `end_task` with `.skillpilot/session.json` as source of truth |
+| **Metadata overlays** | Patch routing for community skills without touching their `SKILL.md` bodies |
+| **Open stack** | Node.js, stdio MCP, MIT-friendly deps — no API keys at install time |
+
+---
+
+## Quick start
+
+**Requirements:** Node.js 18+
 
 ```bash
-cd /path/to/SkillPilot
+git clone <your-fork-url>
+cd SkillPilot
 npm install
 npm run build
 ```
 
-## Run (stdio MCP)
+Point your MCP host at the built server and set the skill root:
 
-The server resolves the skill root in order: **`--skill-root`**, then **`SKILL_ROOT`** / **`SKILLPILOT_SKILLS_ROOT`**, then **`skillpilot.config.json`**, then **`./.agents/skills`** relative to cwd.
-
-```bash
-# Default: <cwd>/.agents/skills
-npm start
-
-# Explicit root
-node dist/index.js --skill-root ./.agents/skills
-
-# Or via env (recommended for MCP hosts)
-export SKILL_ROOT=/path/to/SkillPilot/.agents/skills
-node dist/index.js
+```json
+{
+  "mcpServers": {
+    "skillpilot": {
+      "command": "node",
+      "args": ["<REPO>/SkillPilot/dist/index.js"],
+      "env": {
+        "SKILL_ROOT": "<REPO>/SkillPilot/.agents/skills"
+      }
+    }
+  }
+}
 ```
 
-Copy **`skillpilot.config.json.example`** → **`skillpilot.config.json`** to tune inject caps and default token budget.
+See [`docs/mcp-config.example.json`](docs/mcp-config.example.json) for a full template.
 
-**Important:** MCP uses **stdout** for the protocol. Operational logs go to **stderr** only (structured JSON per **`skillpilot_docs/SPEC.md`**).
-
-### Tools
-
-| Tool | Aliases | Purpose |
-|------|---------|---------|
-| **`list`** | `skill_list` | Tier 1 catalog (`id`, `title`, `summary`, optional `tags`, `version`). Optional `tags` filter. |
-| **`select`** | `skill_select` | Heuristic match on summaries only; `token_budget`, `top_k`. |
-| **`load`** | `skill_inject` | Shaped body, `token_estimate`, `ttl_hint`, `correlation_id`. |
-| **`cleanup`** | `skill_cleanup` | Idempotent ack for `correlation_id`. |
-| **`skill_plan`** | — | Multi-step plan + `skills_needed` from Tier 1 only. |
-| **`begin_task`** | — | `select` + shaped `load` + **`.skillpilot/session.json`** (v2). |
-| **`end_task`** | — | `cleanup` + clear session / bridge files. |
-| **`get_session`** | — | Read active session; optional `include_summary`, `include_body`. |
-| **`health`** | — | Index builds; skill count. |
-| **`ingest`** | — | Optional: copy `.agents/skills/<folder>` → `skills/` (dogfood import). |
-
-Typical flow: **`skill_plan`** (multi-step) → **`begin_task`** → work → **`end_task`**. Low-level **`select`** / **`load`** remain for debugging.
-
-**Growing the catalog:** **find-skills** → `npx skills add` into **`.agents/skills/`** — no import to `skills/` required when MCP points at `.agents/skills`. See **`docs/SKILLS_CATALOG.md`**.
-
-## npm scripts
-
-| Script | Command |
-|--------|---------|
-| **`npm run build`** | `tsc` → `dist/` |
-| **`npm start`** | `node dist/index.js` |
-| **`npm test`** | Build + `node:test` (`dist/**/*.test.js`) |
-| **`npm run smoke`** | Stdio MCP: `list`, `skill_plan`, `begin_task`, `health`, `end_task` (uses `.agents/skills`) |
-| **`npm run skills:add -- <pkg>`** | `npx skills add` into `.agents/skills` (no `-g`) |
-| **`npm run skills:import -- <folder>`** | Optional copy `.agents/skills/<folder>` → `skills/` |
-
-## Validate end-to-end
+**Verify locally:**
 
 ```bash
-npm run build
-$env:SKILL_ROOT = "$PWD/.agents/skills"   # PowerShell
+# Bash
+export SKILL_ROOT="$(pwd)/.agents/skills"
+npm run smoke
+
+# PowerShell
+$env:SKILL_ROOT = "$PWD/.agents/skills"
 npm run smoke
 ```
 
-See **`docs/VALIDATION_REPORT.md`**, **`docs/HOST_MCP_SETUP.md`**, **`docs/MCP_TESTING.md`**.
+---
 
-## MCP host configuration
+## Growing your skill catalog
 
-See **`docs/mcp-config.example.json`**. Set **`SKILL_ROOT`** to **`<REPO>/.agents/skills`**.
+1. **Discover** — use the bundled **find-skills** skill or `npx skills find <query>` on [skills.sh](https://skills.sh/).
+2. **Install project-local** — from the repo root: `npx skills add <package> -y` (no `-g`). Skills land in `.agents/skills/`.
+3. **Add routing metadata** — create `.agents/skills-meta/<id>.yaml` with `tags`, `triggers`, and optional `inject_mode_default: compact` for large skills.
+4. **Route** — MCP reads `.agents/skills` and merges overlays automatically.
 
-After pulling tool changes, run **`npm run build`** and **restart** the MCP server in Cursor.
+Details: [`docs/SKILLS_CATALOG.md`](docs/SKILLS_CATALOG.md)
 
-## Repo layout
+---
 
-- **`.agents/skills/{skill_id}/SKILL.md`** — canonical catalog (ecosystem + `com-skillpilot-orchestrator`).
-- **`skills/`** — optional legacy / ingest target for the **`ingest`** tool.
-- **`src/`** — TypeScript MCP server.
-- **`skillpilot_docs/`** — architecture, SPEC, token compression, roadmap.
-- **`.skillpilot/`** — session SOT (`session.json`, `active-body.md` bridge).
+## MCP tools
 
-## References
+Lifecycle tools (recommended for agents):
 
-- **`skillpilot_docs/ARCHITECTURE.md`** — tiers, lifecycle, selectors.
-- **`skillpilot_docs/SPEC.md`** — MCP tools, errors, config.
-- **`skill-rules.md`** — ids, metadata, caps.
-- **`v1-exceptions.md`** — v1 scope notes.
+| Tool | Purpose |
+|------|---------|
+| `skill_plan` | Plan which skills a goal needs — summaries only, no bodies loaded |
+| `begin_task` | Select, inject, and open a task session |
+| `end_task` | Cleanup and clear the session |
+| `get_session` | Read the active episode (optional body) |
+
+Low-level tools (debugging and custom flows):
+
+| Tool | Aliases |
+|------|---------|
+| `list` | `skill_list` |
+| `select` | `skill_select` |
+| `load` | `skill_inject` |
+| `cleanup` | `skill_cleanup` |
+| `health` | — |
+| `ingest` | Optional copy into legacy `skills/` tree |
+
+`load` and `begin_task` support **`inject_mode`** (`summary` | `compact` | `sections` | `full`) and **`token_budget`** to auto-pick depth. See [`docs/CONTEXT_ENGINEERING.md`](docs/CONTEXT_ENGINEERING.md).
+
+---
+
+## Configuration
+
+Copy [`skillpilot.config.json.example`](skillpilot.config.json.example) to `skillpilot.config.json` to tune defaults:
+
+```json
+{
+  "skillsRoot": "./.agents/skills",
+  "defaultInjectMode": "compact",
+  "maxInjectBytes": 8192,
+  "defaultTokenBudget": 2048
+}
+```
+
+Resolution order for the skill root: `--skill-root` → `SKILL_ROOT` env → config file → `./.agents/skills`.
+
+MCP protocol traffic uses **stdout** only; logs go to **stderr** as structured JSON.
+
+---
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run build` | Compile TypeScript to `dist/` |
+| `npm start` | Run the MCP server (stdio) |
+| `npm test` | Unit tests |
+| `npm run smoke` | End-to-end MCP lifecycle check |
+| `npm run benchmark` | Token savings + selection regression |
+| `npm run skills:add -- <pkg>` | Install a skill into `.agents/skills` |
+
+---
+
+## Project layout
+
+```text
+SkillPilot/
+├── .agents/skills/          ← canonical skill catalog (SKILL.md per skill)
+├── .agents/skills-meta/     ← SkillPilot overlays (tags, triggers, inject defaults)
+├── src/                     ← MCP server (TypeScript)
+├── skillpilot_docs/         ← architecture, spec, token strategy, roadmap
+├── docs/                    ← host setup, catalog, context engineering
+└── .skillpilot/             ← active session (gitignored): session.json, bridge files
+```
+
+The legacy `skills/` directory is optional — used only if you dogfood the `ingest` tool.
+
+---
+
+## Documentation
+
+| Doc | Topic |
+|-----|--------|
+| [Architecture](skillpilot_docs/ARCHITECTURE.md) | Tiers, lifecycle, design constraints |
+| [Specification](skillpilot_docs/SPEC.md) | Tool contracts and error codes |
+| [Context engineering](docs/CONTEXT_ENGINEERING.md) | Inject ladder and overlay workflow |
+| [Host setup](docs/HOST_MCP_SETUP.md) | Cursor and VS Code MCP wiring |
+| [Skills catalog](docs/SKILLS_CATALOG.md) | Install, overlay, and route skills |
+| [Autonomous usage](docs/AUTONOMOUS_USAGE.md) | Hooks, session file, agent policy |
+
+---
+
+## License
+
+ISC — see package metadata. Dependencies are permissive open source (MIT / Apache 2.0 / BSD).
