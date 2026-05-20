@@ -2,9 +2,12 @@ import path from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import * as z from 'zod/v4';
+import type { SkillPilotConfig } from './config.js';
 import { MAX_SELECT_INPUT_CHARS } from './constants.js';
+import { SkillPilotError, errorPayload, type SkillPilotErrorCode } from './errors.js';
 import { importSkillFromAgents, resolveRepoRoot } from './import-skill.js';
-import { selectSkill } from './select.js';
+import { logToolError, logToolOk } from './observability.js';
+import { getSelector, planFromCandidates } from './selector/index.js';
 import {
   beginTask,
   endTask,
@@ -14,10 +17,17 @@ import {
   runCleanup,
   validateSkillIdForLoad,
 } from './task-lifecycle.js';
-import { buildIndex, formatIndexError } from './store.js';
+import { formatIndexError, getSkillIndex } from './store.js';
 
-function toolError(text: string) {
-  return { isError: true as const, content: [{ type: 'text' as const, text }] };
+type ToolResult = ReturnType<typeof toolOk>;
+
+function toolError(code: SkillPilotErrorCode, message: string) {
+  const payload = errorPayload(code, message);
+  return {
+    isError: true as const,
+    content: [{ type: 'text' as const, text: JSON.stringify(payload, null, 2) }],
+    structuredContent: payload,
+  };
 }
 
 function toolOk(payload: Record<string, unknown>) {
@@ -27,21 +37,304 @@ function toolOk(payload: Record<string, unknown>) {
   };
 }
 
-export function createSkillPilotServer(skillRoot: string): McpServer {
+function handleError(tool: string, e: unknown) {
+  if (e instanceof SkillPilotError) {
+    logToolError(tool, e.code, { message: e.message });
+    return toolError(e.code, e.message);
+  }
+  const message = e instanceof Error ? e.message : String(e);
+  logToolError(tool, 'SELECTOR_ERROR', { message });
+  return toolError('SELECTOR_ERROR', message);
+}
+
+const selectInputSchema = {
+  prompt: z.string().describe('User message or task description to match against skill metadata'),
+  goal: z.string().optional().describe('Optional higher-level goal'),
+  context: z.string().optional().describe('Optional extra context merged into matching'),
+  client: z.string().optional().describe('Optional host hint (e.g. cursor)'),
+  workspace_path: z.string().optional().describe('Optional workspace path for keyword context'),
+  token_budget: z.number().int().optional().describe('Max token_estimate for selected skill body'),
+  top_k: z.number().int().optional().describe('Return up to N ranked candidates (default 1)'),
+};
+
+async function runSelect(
+  rootDisplay: string,
+  config: SkillPilotConfig,
+  input: z.infer<z.ZodObject<typeof selectInputSchema>>,
+): Promise<ToolResult> {
+  const start = Date.now();
+  const trimmedPrompt = input.prompt.trim();
+  if (!trimmedPrompt && !(input.goal?.trim())) {
+    return toolError('VALIDATION_ERROR', 'select requires a non-empty prompt or goal.');
+  }
+  if (input.prompt.length > MAX_SELECT_INPUT_CHARS || (input.goal?.length ?? 0) > MAX_SELECT_INPUT_CHARS) {
+    return toolError(
+      'VALIDATION_ERROR',
+      `prompt and goal must each be at most ${MAX_SELECT_INPUT_CHARS} characters.`,
+    );
+  }
+  const index = getSkillIndex(rootDisplay);
+  if (!index.ok) return toolError('STORE_UNAVAILABLE', formatIndexError(index));
+  const selector = getSelector(config);
+  const result = selector.select([...index.metas.values()], {
+    prompt: trimmedPrompt || input.goal!.trim(),
+    goal: input.goal?.trim(),
+    context: input.context?.trim(),
+    client: input.client?.trim(),
+    workspace_path: input.workspace_path?.trim(),
+    token_budget: input.token_budget ?? config.defaultTokenBudget,
+    top_k: input.top_k,
+  });
+  logToolOk('skill_select', { skill_id: result.skill_id ?? undefined, duration_ms: Date.now() - start });
+  return toolOk(result as unknown as Record<string, unknown>);
+}
+
+async function runList(
+  rootDisplay: string,
+  tags?: string[],
+): Promise<ToolResult> {
+  const index = getSkillIndex(rootDisplay);
+  if (!index.ok) return toolError('STORE_UNAVAILABLE', formatIndexError(index));
+  let skills = index.skills;
+  if (tags?.length) {
+    const tagSet = new Set(tags.map((t) => t.toLowerCase()));
+    skills = skills.filter((s) => s.tags?.some((t) => tagSet.has(t.toLowerCase())));
+  }
+  logToolOk('skill_list', { count: skills.length });
+  return toolOk({ skills });
+}
+
+async function runLoad(
+  rootDisplay: string,
+  config: SkillPilotConfig,
+  skill_id: string,
+  correlation_id?: string,
+): Promise<ToolResult> {
+  const err = validateSkillIdForLoad(skill_id);
+  if (err) return toolError('VALIDATION_ERROR', err);
+  try {
+    return toolOk(
+      loadSkillEpisode(rootDisplay, skill_id, config, correlation_id) as unknown as Record<
+        string,
+        unknown
+      >,
+    );
+  } catch (e) {
+    return handleError('skill_inject', e);
+  }
+}
+
+export function createSkillPilotServer(skillRoot: string, config: SkillPilotConfig): McpServer {
   const rootDisplay = path.resolve(skillRoot);
   const repoRoot = resolveRepoRootFromSkillRoot(rootDisplay);
 
   const mcp = new McpServer({
     name: 'skillpilot',
-    version: '1.3.0',
+    version: '1.4.0',
     title: 'SkillPilot',
   });
+
+  const listHandler = async (input?: { tags?: string[] }) => runList(rootDisplay, input?.tags);
 
   mcp.registerTool(
     'list',
     {
       description:
-        'List valid skills under SKILL_ROOT: id, title, summary, optional tags and version. Errors if the store has invalid or duplicate skills.',
+        'List valid skills under SKILL_ROOT (Tier 0+1: id, title, summary, tags). Fails if store invalid.',
+      inputSchema: {
+        tags: z
+          .array(z.string())
+          .optional()
+          .describe('Optional tag filter — skills with any matching tag'),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    listHandler,
+  );
+
+  mcp.registerTool(
+    'skill_list',
+    {
+      description: 'Alias for list — enumerate skills (summaries only, no bodies).',
+      inputSchema: {
+        tags: z.array(z.string()).optional(),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    listHandler,
+  );
+
+  const selectHandler = async (input: z.infer<z.ZodObject<typeof selectInputSchema>>) => {
+    try {
+      return await runSelect(rootDisplay, config, input);
+    } catch (e) {
+      return handleError('skill_select', e);
+    }
+  };
+
+  mcp.registerTool(
+    'select',
+    {
+      description:
+        'Heuristically pick the best skill_id (Tier 1 only). Prefer begin_task for full lifecycle.',
+      inputSchema: selectInputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    selectHandler,
+  );
+
+  mcp.registerTool(
+    'skill_select',
+    {
+      description: 'Alias for select — match prompt to skill using summaries only.',
+      inputSchema: selectInputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    selectHandler,
+  );
+
+  mcp.registerTool(
+    'skill_plan',
+    {
+      description:
+        'Plan which skills are needed for a goal (Tier 1 only). Does not inject bodies. Use before begin_task on complex work.',
+      inputSchema: {
+        goal: z.string().describe('High-level task or goal'),
+        context: z.string().optional(),
+        max_skills: z.number().int().optional().describe('Max skills in plan (default 5)'),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ goal, context, max_skills }) => {
+      try {
+        const index = getSkillIndex(rootDisplay);
+        if (!index.ok) return toolError('STORE_UNAVAILABLE', formatIndexError(index));
+        const plan = planFromCandidates([...index.metas.values()], {
+          goal: goal.trim(),
+          context: context?.trim(),
+          max_skills: max_skills ?? 5,
+        });
+        logToolOk('skill_plan', { steps: plan.plan.length });
+        return toolOk(plan as unknown as Record<string, unknown>);
+      } catch (e) {
+        return handleError('skill_plan', e);
+      }
+    },
+  );
+
+  const loadHandler = async ({
+    skill_id,
+    correlation_id,
+  }: {
+    skill_id: string;
+    correlation_id?: string;
+  }) => runLoad(rootDisplay, config, skill_id, correlation_id);
+
+  mcp.registerTool(
+    'load',
+    {
+      description:
+        'Load shaped injectable skill body. Returns token_estimate, ttl_hint, merge_hint.',
+      inputSchema: {
+        skill_id: z.string(),
+        correlation_id: z.string().optional(),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    loadHandler,
+  );
+
+  mcp.registerTool(
+    'skill_inject',
+    {
+      description: 'Alias for load — inject skill body for current task.',
+      inputSchema: {
+        skill_id: z.string(),
+        correlation_id: z.string().optional(),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    loadHandler,
+  );
+
+  const cleanupHandler = async ({ correlation_id }: { correlation_id: string }) => {
+    logToolOk('skill_cleanup', { correlation_id });
+    return toolOk(runCleanup(correlation_id) as unknown as Record<string, unknown>);
+  };
+
+  mcp.registerTool(
+    'cleanup',
+    {
+      description: 'Idempotent cleanup for a correlation_id.',
+      inputSchema: {
+        correlation_id: z.string().describe('UUID from load or begin_task'),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    cleanupHandler,
+  );
+
+  mcp.registerTool(
+    'skill_cleanup',
+    {
+      description: 'Alias for cleanup.',
+      inputSchema: {
+        correlation_id: z.string(),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    cleanupHandler,
+  );
+
+  mcp.registerTool(
+    'health',
+    {
+      description: 'Read-only health check: skill root readable and index builds.',
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -50,26 +343,19 @@ export function createSkillPilotServer(skillRoot: string): McpServer {
       },
     },
     async () => {
-      const index = buildIndex(rootDisplay);
-      if (!index.ok) return toolError(formatIndexError(index));
-      return toolOk({ skills: index.skills });
+      const index = getSkillIndex(rootDisplay);
+      if (!index.ok) return toolError('STORE_UNAVAILABLE', formatIndexError(index));
+      return toolOk({ ok: true, skill_count: index.skills.length, skills_root: rootDisplay });
     },
   );
 
   mcp.registerTool(
     'get_session',
     {
-      description:
-        'Read the active SkillPilot task session from .skillpilot/session.json. Use before begin_task to avoid duplicate episodes.',
+      description: 'Read active task session from .skillpilot/session.json.',
       inputSchema: {
-        include_summary: z
-          .boolean()
-          .optional()
-          .describe('When active, include title/summary/rationale (default true)'),
-        include_body: z
-          .boolean()
-          .optional()
-          .describe('When active, include full skill body (default false)'),
+        include_summary: z.boolean().optional(),
+        include_body: z.boolean().optional(),
       },
       annotations: {
         readOnlyHint: true,
@@ -80,10 +366,10 @@ export function createSkillPilotServer(skillRoot: string): McpServer {
     },
     async (input) => {
       return toolOk(
-        getSession(rootDisplay, repoRoot, {
+        getSession(rootDisplay, repoRoot, config, {
           include_summary: input.include_summary,
           include_body: input.include_body,
-        }),
+        }) as unknown as Record<string, unknown>,
       );
     },
   );
@@ -92,25 +378,18 @@ export function createSkillPilotServer(skillRoot: string): McpServer {
     'begin_task',
     {
       description:
-        'Preferred task start: select (unless skill_id given) + load skill body + write session file. Returns body, correlation_id, ttl_ms. Call end_task when done. Do not read skills/ directly.',
+        'Preferred task start: select + shaped load + session file. SKILL_ROOT defaults to .agents/skills.',
       inputSchema: {
-        prompt: z.string().describe('User message or task description'),
+        prompt: z.string(),
         goal: z.string().optional(),
+        context: z.string().optional(),
         client: z.string().optional(),
         workspace_path: z.string().optional(),
-        skill_id: z.string().optional().describe('Skip select when skill_id is known'),
-        phase: z
-          .string()
-          .optional()
-          .describe('Dev stage hint: plan, implement, review, ci'),
-        end_previous: z
-          .boolean()
-          .optional()
-          .describe('If true (default), cleanup prior session before starting'),
-        response_detail: z
-          .enum(['summary', 'full'])
-          .optional()
-          .describe('summary (default) omits alternatives; full returns debug fields'),
+        skill_id: z.string().optional(),
+        phase: z.string().optional(),
+        token_budget: z.number().int().optional(),
+        end_previous: z.boolean().optional(),
+        response_detail: z.enum(['summary', 'full']).optional(),
       },
       annotations: {
         readOnlyHint: false,
@@ -122,19 +401,10 @@ export function createSkillPilotServer(skillRoot: string): McpServer {
     async (input) => {
       try {
         return toolOk(
-          beginTask(rootDisplay, repoRoot, {
-            prompt: input.prompt,
-            goal: input.goal,
-            client: input.client,
-            workspace_path: input.workspace_path,
-            skill_id: input.skill_id,
-            phase: input.phase,
-            end_previous: input.end_previous,
-            response_detail: input.response_detail,
-          }),
+          beginTask(rootDisplay, repoRoot, config, input) as unknown as Record<string, unknown>,
         );
       } catch (e) {
-        return toolError(e instanceof Error ? e.message : String(e));
+        return handleError('begin_task', e);
       }
     },
   );
@@ -142,14 +412,9 @@ export function createSkillPilotServer(skillRoot: string): McpServer {
   mcp.registerTool(
     'end_task',
     {
-      description:
-        'Preferred task end: idempotent cleanup for active session (or pass correlation_id). Clears .skillpilot/session.json.',
+      description: 'Preferred task end: cleanup + clear session.',
       inputSchema: {
-        correlation_id: z
-          .string()
-          .uuid()
-          .optional()
-          .describe('Defaults to session file correlation_id'),
+        correlation_id: z.string().uuid().optional(),
       },
       annotations: {
         readOnlyHint: false,
@@ -160,54 +425,10 @@ export function createSkillPilotServer(skillRoot: string): McpServer {
     },
     async ({ correlation_id }) => {
       try {
-        return toolOk(endTask(repoRoot, correlation_id));
+        return toolOk(endTask(repoRoot, correlation_id) as unknown as Record<string, unknown>);
       } catch (e) {
-        return toolError(e instanceof Error ? e.message : String(e));
+        return handleError('end_task', e);
       }
-    },
-  );
-
-  mcp.registerTool(
-    'select',
-    {
-      description:
-        'Heuristically pick the best skill_id for a user prompt/goal. Prefer begin_task for full lifecycle. No LLM.',
-      inputSchema: {
-        prompt: z.string().describe('User message or task description to match against skill metadata'),
-        goal: z.string().optional().describe('Optional higher-level goal (merged with prompt for matching)'),
-        client: z
-          .string()
-          .optional()
-          .describe('Optional host hint (e.g. cursor, vscode); soft boost only in v1'),
-        workspace_path: z
-          .string()
-          .optional()
-          .describe('Optional workspace path; tokenized for extra keyword context'),
-      },
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-    },
-    async ({ prompt, goal, client, workspace_path }) => {
-      const trimmedPrompt = prompt.trim();
-      if (!trimmedPrompt && !(goal?.trim())) {
-        return toolError('select requires a non-empty prompt or goal.');
-      }
-      if (prompt.length > MAX_SELECT_INPUT_CHARS || (goal?.length ?? 0) > MAX_SELECT_INPUT_CHARS) {
-        return toolError(`prompt and goal must each be at most ${MAX_SELECT_INPUT_CHARS} characters.`);
-      }
-      const index = buildIndex(rootDisplay);
-      if (!index.ok) return toolError(formatIndexError(index));
-      const result = selectSkill([...index.metas.values()], {
-        prompt: trimmedPrompt || goal!.trim(),
-        goal: goal?.trim(),
-        client: client?.trim() || undefined,
-        workspace_path: workspace_path?.trim() || undefined,
-      });
-      return toolOk(result);
     },
   );
 
@@ -215,16 +436,11 @@ export function createSkillPilotServer(skillRoot: string): McpServer {
     'ingest',
     {
       description:
-        'Import a skill from this repo’s .agents/skills/<folder> into SKILL_ROOT (project-local catalog). Use after `npx skills add` without -g.',
+        'Import from .agents/skills/<folder> into SKILL_ROOT (optional; canonical store is .agents/skills).',
       inputSchema: {
-        agents_folder: z
-          .string()
-          .describe('Folder name under .agents/skills (e.g. find-skills)'),
-        skill_id: z.string().optional().describe('Optional override for canonical id'),
-        repo_root: z
-          .string()
-          .optional()
-          .describe('Repo root containing .agents/skills; default: parent of SKILL_ROOT'),
+        agents_folder: z.string(),
+        skill_id: z.string().optional(),
+        repo_root: z.string().optional(),
       },
       annotations: {
         readOnlyHint: false,
@@ -245,62 +461,16 @@ export function createSkillPilotServer(skillRoot: string): McpServer {
           warnings: result.warnings,
         });
       } catch (e) {
-        return toolError(e instanceof Error ? e.message : String(e));
+        return handleError('ingest', e);
       }
-    },
-  );
-
-  mcp.registerTool(
-    'load',
-    {
-      description:
-        'Load injectable skill body by skill_id. Prefer begin_task at task start. Returns body, correlation_id, ttl_ms.',
-      inputSchema: {
-        skill_id: z.string().describe('Canonical skill id (skill-rules §2); call list for available ids'),
-      },
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-    },
-    async ({ skill_id }) => {
-      const err = validateSkillIdForLoad(skill_id);
-      if (err) return toolError(err);
-      try {
-        return toolOk(loadSkillEpisode(rootDisplay, skill_id));
-      } catch (e) {
-        return toolError(e instanceof Error ? e.message : String(e));
-      }
-    },
-  );
-
-  mcp.registerTool(
-    'cleanup',
-    {
-      description:
-        'Idempotent cleanup for a correlation_id. Prefer end_task for session-aware cleanup.',
-      inputSchema: {
-        correlation_id: z.string().uuid().describe('UUID from load or begin_task'),
-      },
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-    },
-    async ({ correlation_id }) => {
-      return toolOk(runCleanup(correlation_id));
     },
   );
 
   return mcp;
 }
 
-export async function runMcpServer(skillRoot: string): Promise<void> {
-  const server = createSkillPilotServer(skillRoot);
+export async function runMcpServer(skillRoot: string, config: SkillPilotConfig): Promise<void> {
+  const server = createSkillPilotServer(skillRoot, config);
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

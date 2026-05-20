@@ -35,4 +35,15 @@ describe('parseSkillMarkdown', () => {
   it('rejects missing front matter', () => {
     assert.throws(() => parseSkillMarkdown('# no yaml\n', 'test-skill'), /front matter/);
   });
+
+  it('derives triggers from quoted description phrases', () => {
+    const eco = `---
+name: find-skills
+description: Use when users say "find a skill for X" or "npx skills find".
+---
+body
+`;
+    const { meta } = parseSkillMarkdown(eco, 'find-skills');
+    assert.ok(meta.triggers?.some((t) => t.includes('find a skill')));
+  });
 });

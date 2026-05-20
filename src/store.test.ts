@@ -6,11 +6,16 @@ import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { buildIndex, loadSkillBody } from './store.js';
 
-const repoSkills = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'skills');
+const agentsSkills = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '.agents',
+  'skills',
+);
 
 describe('buildIndex', () => {
   it('indexes catalog skills in repo', () => {
-    const index = buildIndex(repoSkills);
+    const index = buildIndex(agentsSkills);
     assert.equal(index.ok, true);
     if (!index.ok) return;
     assert.ok(index.skills.length >= 2);
@@ -44,14 +49,14 @@ body
 
 describe('loadSkillBody', () => {
   it('loads a known skill', () => {
-    const { meta, body } = loadSkillBody(repoSkills, 'com-skillpilot-orchestrator');
+    const { meta, body } = loadSkillBody(agentsSkills, 'com-skillpilot-orchestrator');
     assert.equal(meta.id, 'com-skillpilot-orchestrator');
     assert.match(body, /begin_task/);
   });
 
   it('throws actionable error for unknown id', () => {
     assert.throws(
-      () => loadSkillBody(repoSkills, 'no-such-skill-id'),
+      () => loadSkillBody(agentsSkills, 'no-such-skill-id'),
       (e: Error) => e.message.includes('Unknown skill_id') && e.message.includes('list tool'),
     );
   });

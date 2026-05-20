@@ -1,41 +1,43 @@
 # Cursor and VS Code — MCP host wiring
 
-Use **`docs/mcp-config.example.json`** as the shape of the `mcpServers` entry. Replace placeholders with **absolute paths** on your machine.
+Use **`docs/mcp-config.example.json`** as the shape of the `mcpServers` entry. Replace `<REPO>` with **absolute paths** on your machine.
 
 ## Cursor
 
-1. Open **Cursor Settings → MCP** (or add project-level **`.cursor/mcp.json`** if you use per-repo MCP).
+1. Open **Cursor Settings → MCP** (or add project-level **`.cursor/mcp.json`**).
 2. Merge the `skillpilot` block from `mcp-config.example.json`.
 3. Set:
-   - `command`: `node` (or full path to `node.exe` on Windows if `node` is not on PATH for GUI apps).
-   - `args`: `[ "<REPO>/dist/index.js" ]` or add `"--skill-root", "<REPO>/skills>"` after the entry script.
-   - `env.SKILL_ROOT`: `"<REPO>/skills"` (recommended so cwd does not matter).
+   - `command`: `node` (or full path to `node.exe` on Windows if GUI apps lack PATH).
+   - `args`: `[ "<REPO>/SkillPilot/dist/index.js" ]` or add `"--skill-root", "<REPO>/SkillPilot/.agents/skills"`.
+   - `env.SKILL_ROOT`: `"<REPO>/SkillPilot/.agents/skills"` (**canonical**; do not point at `skills/` unless you only use ingest).
 
 Restart MCP / reload window after edits.
 
-### `select` missing in Cursor (only `list`, `load`, `cleanup`)
+### Stale tool list
 
-The repo **does** register **`select`** after Sprint B. If Cursor’s tool list is stale:
+After pulling:
 
-1. **Rebuild** from the repo you are editing:
-   ```bash
-   cd P:\Troy\Code\Tools\SkillPilot
-   npm run build
-   ```
-2. **Confirm** `dist/server.js` is newer than your last pull (or run `npm run smoke` — it calls `select`).
-3. **Point MCP at this build** — `args` must be the absolute path to **`...\SkillPilot\dist\index.js`**, not another clone, `npm link` target, or an old global install.
-4. **Restart the MCP server** in Cursor: disable/re-enable the `skillpilot` server, or **Developer: Reload Window**.
-5. In chat, ask the agent to **list MCP tools** for `skillpilot` — you should see **`select`**.
+```bash
+cd <REPO>/SkillPilot
+npm run build
+npm run smoke
+```
 
-If `select` still does not appear, check for a **second** SkillPilot entry in user vs project MCP config (one may point at an old path).
+Restart the `skillpilot` MCP server in Cursor. You should see **`skill_plan`**, **`health`**, **`skill_list`** aliases, and lifecycle tools.
 
 ## VS Code
 
-1. Open **MCP** settings for your VS Code build (location varies by version; often user `settings.json` MCP section or dedicated MCP JSON — follow [VS Code MCP documentation](https://code.visualstudio.com/docs) for your release).
-2. Use the **same** `mcpServers.skillpilot` object as in `mcp-config.example.json`, with the same absolute paths as for Cursor.
+Use the same `mcpServers.skillpilot` object per your MCP extension’s JSON config.
 
 ## Verify in the IDE
 
-After the server appears as connected, invoke tools in order: **`list`** → **`select`** (optional) → **`load`** → **`cleanup`** (use `correlation_id` from `load`; call twice to confirm idempotency).
+**`list`** → **`skill_plan`** → **`begin_task`** → **`get_session`** → **`end_task`**.
 
-CLI alternative (no IDE): from repo root, `npm run smoke` (runs `list` → `select` → `load` → `cleanup` ×2).
+CLI (no IDE): from repo root with `SKILL_ROOT` set:
+
+```powershell
+$env:SKILL_ROOT = "$PWD/.agents/skills"
+npm run smoke
+```
+
+See **`docs/MCP_TESTING.md`**.

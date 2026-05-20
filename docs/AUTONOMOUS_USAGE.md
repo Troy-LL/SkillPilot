@@ -27,12 +27,14 @@ Path: **`.skillpilot/session.json`** at the repo root (gitignored). Written by *
 
 | Tool | Role |
 |------|------|
-| **`begin_task`** | `select` (unless `skill_id`) + `load` + write session; optional `end_previous` (default true) |
+| **`skill_plan`** | Tier-1-only plan + `skills_needed` before multi-phase work |
+| **`begin_task`** | `select` (unless `skill_id`) + shaped `load` + write session; `token_budget`, `phase` |
 | **`end_task`** | `cleanup` + clear session |
 | **`get_session`** | Read active episode or `{ active: false }` |
-| `list`, `select`, `load`, `cleanup`, `ingest` | Debugging and catalog growth |
+| `list` / `skill_list`, `select`, `load`, `health` | Debugging and catalog checks |
+| `ingest` | Optional copy `.agents/skills` → `skills/` |
 
-**Typical flow:** `begin_task` → (agent work using `body`) → `end_task`.
+**SKILL_ROOT:** **`.agents/skills/`** for this repo. **Typical flow:** `skill_plan` (optional) → `begin_task` → work → `end_task`.
 
 ### Cursor rules
 

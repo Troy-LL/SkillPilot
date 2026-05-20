@@ -11,7 +11,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
 const entry = path.join(repoRoot, 'dist', 'index.js');
-const skillRoot = path.join(repoRoot, 'skills');
+const skillRoot = path.join(repoRoot, '.agents', 'skills');
 const sessionFile = path.join(repoRoot, '.skillpilot', 'session.json');
 
 const transport = new StdioClientTransport({
@@ -31,7 +31,32 @@ try {
     console.error('list failed:', listRes.content);
     process.exit(1);
   }
-  console.log('Step list: ok,', listRes.structuredContent?.skills?.length, 'skill(s)');
+  const skillCount = listRes.structuredContent?.skills?.length ?? 0;
+  console.log('Step list: ok,', skillCount, 'skill(s)');
+  if (!listRes.structuredContent?.skills?.some((s) => s.id === 'mcp-builder')) {
+    console.error('list: expected mcp-builder in .agents/skills');
+    process.exit(1);
+  }
+
+  const aliasList = await client.callTool({ name: 'skill_list', arguments: {} });
+  if (aliasList.isError || aliasList.structuredContent?.skills?.length !== skillCount) {
+    console.error('skill_list alias failed');
+    process.exit(1);
+  }
+  console.log('Step skill_list alias: ok');
+
+  const planRes = await client.callTool({
+    name: 'skill_plan',
+    arguments: {
+      goal: 'Implement skillpilot token compression and skill_plan tool',
+      max_skills: 3,
+    },
+  });
+  if (planRes.isError || !planRes.structuredContent?.plan?.length) {
+    console.error('skill_plan failed:', planRes.content);
+    process.exit(1);
+  }
+  console.log('Step skill_plan: ok, steps:', planRes.structuredContent.plan.length);
 
   const beginRes = await client.callTool({
     name: 'begin_task',
@@ -48,6 +73,10 @@ try {
   }
   if (!begin.summary || begin.alternatives !== undefined) {
     console.error('begin_task: expected summary mode without alternatives', begin);
+    process.exit(1);
+  }
+  if (!begin.token_estimate || begin.ttl_hint === undefined) {
+    console.error('begin_task: missing token_estimate or ttl_hint', begin);
     process.exit(1);
   }
   console.log('Step begin_task (summary): ok, skill_id:', begin.skill_id);
@@ -76,6 +105,13 @@ try {
     process.exit(1);
   }
   console.log('Step get_session: ok');
+
+  const healthRes = await client.callTool({ name: 'health', arguments: {} });
+  if (healthRes.isError || !healthRes.structuredContent?.ok) {
+    console.error('health failed:', healthRes.content);
+    process.exit(1);
+  }
+  console.log('Step health: ok, skill_count:', healthRes.structuredContent.skill_count);
 
   const end1 = await client.callTool({ name: 'end_task', arguments: {} });
   if (end1.isError || !end1.structuredContent?.ok) {

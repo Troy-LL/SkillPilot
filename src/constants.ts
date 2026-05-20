@@ -3,12 +3,18 @@ export const SKILL_ID_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 export const SKILL_ID_MIN = 3;
 export const SKILL_ID_MAX = 64;
 
-/** Entire SKILL.md on disk (skill-rules §8) */
+/** Entire SKILL.md on disk (skill-rules §8; ecosystem skills may be larger — inject capped separately) */
 export const MAX_PRIMARY_BYTES = 256 * 1024;
 /** Body after front matter strip (skill-rules §8) */
 export const MAX_BODY_BYTES = 192 * 1024;
 
-/** Hint for hosts (ms); policy remains client-side per architecture.md */
+/** Max shaped inject payload (SPEC default) */
+export const MAX_INJECT_BYTES = 8192;
+
+/** Default token budget when caller omits token_budget (SPEC) */
+export const DEFAULT_TOKEN_BUDGET = 2048;
+
+/** Hint for hosts (ms); overridden by ttl_seconds in front matter */
 export const DEFAULT_TTL_MS = 300_000;
 
 /** Max in-flight correlation_ids tracked server-side (FIFO eviction on load). */
@@ -17,5 +23,8 @@ export const MAX_CORRELATION_REGISTRY = 1024;
 /** Max characters for select prompt / goal inputs. */
 export const MAX_SELECT_INPUT_CHARS = 8_000;
 
-/** Minimum heuristic score to return a skill_id (below → no match). */
+/** Minimum normalized confidence to return a skill_id (SPEC ~0.1). */
+export const SELECT_MIN_CONFIDENCE = 0.1;
+
+/** Legacy raw score floor (kept for tests that use raw scores in alternatives). */
 export const SELECT_MIN_SCORE = 2;

@@ -1,19 +1,21 @@
 # Skill catalog — discover, install locally, route with SkillPilot
 
-SkillPilot only **lists / selects / loads** skills under **`SKILL_ROOT`** (default `./skills`). To grow that catalog, use the **find-skills** workflow with **project-local** installs — not global `-g` on your user profile.
+SkillPilot **lists / selects / loads** skills under **`SKILL_ROOT`**. For this repo, the **canonical** root is **`.agents/skills/`** — not the template tree under **`skills/`**.
 
-## Pipeline
+## Pipeline (recommended)
 
 ```text
-find-skills (agent)  →  npx skills add (this repo)  →  ingest / import  →  select  →  load  →  cleanup
+find-skills  →  npx skills add (repo root, no -g)  →  .agents/skills/<id>/
+             →  MCP SKILL_ROOT = <repo>/.agents/skills
+             →  skill_plan / begin_task / end_task
 ```
 
 | Step | What | Where files live |
 |------|------|------------------|
 | 1. Discover | Agent follows **find-skills**; `npx skills find <query>` or [skills.sh](https://skills.sh/) | — |
-| 2. Install **locally** | `npm run skills:add -- <pkg>` or `npx skills add <pkg> -y` **from repo root** (no `-g`) | `<repo>/.agents/skills/<name>/` |
-| 3. Import into router | `npm run skills:import -- <name>` or MCP **`ingest`** | `<repo>/skills/<skill_id>/SKILL.md` |
-| 4. Use | MCP **`select`** / **`load`** + extension TTL | Same `SKILL_ROOT` as MCP config |
+| 2. Install **locally** | `npm run skills:add -- <pkg>` or `npx skills add <pkg> -y` **from repo root** (no `-g`) | `<repo>/.agents/skills/<id>/` |
+| 3. Route | MCP with `SKILL_ROOT` pointing at `.agents/skills` | Same path as MCP |
+| 4. Optional ingest | `npm run skills:import -- <id>` or MCP **`ingest`** | Copies to `<repo>/skills/` (legacy / smoke only) |
 
 ## Commands (SkillPilot repo root)
 
@@ -21,37 +23,38 @@ PowerShell:
 
 ```powershell
 npm run build
-npm run skills:add -- vercel-labs/skills@find-skills
-npm run skills:import -- find-skills
+$env:SKILL_ROOT = "$PWD/.agents/skills"
+npx skills add anthropics/skills@mcp-builder -y
 npm run smoke
 ```
 
-Bash:
+Optional import into `skills/` (not required for daily MCP use):
 
-```bash
-npm run build
-npm run skills:add -- vercel-labs/skills@find-skills
-npm run skills:import -- find-skills
+```powershell
+npm run skills:import -- mcp-builder
 ```
 
-`skills:add` runs `npx skills add` with **cwd = this repo** and **without `-g`**, so skills land under **`.agents/skills/`** here — not only on `C:\Users\...\.cursor` or a global agents path.
+## MCP configuration
 
-## MCP `ingest` tool
-
-After a local `npx skills add`:
+Point **`env.SKILL_ROOT`** at **this repo’s `.agents/skills`** folder:
 
 ```json
-{ "agents_folder": "find-skills" }
+"env": { "SKILL_ROOT": "<REPO>/SkillPilot/.agents/skills" }
 ```
 
-Optional: `skill_id`, `repo_root` (defaults to parent of `SKILL_ROOT`).
+See **`docs/mcp-config.example.json`**.
 
-## MCP `SKILL_ROOT` alignment
+## Bundled / project skills (`.agents/skills/`)
 
-Point Cursor MCP `env.SKILL_ROOT` at **this repo’s `skills/`** folder so **`select`** sees imported skills immediately.
+| Skill id | Role |
+|----------|------|
+| **find-skills** | Discover and install ecosystem skills |
+| **com-skillpilot-orchestrator** | `begin_task` / `end_task` / `skill_plan` workflow |
+| **mcp-builder**, **skill-creator**, **typescript-mcp-server-generator** | MCP and skill authoring |
+| **create-hook**, **create-rule** | Cursor hooks and rules |
 
 ## Notes
 
-- Imported skills are normalized to **`skill-rules.md`** (`id`, `title`, `summary`; `name`/`description` from upstream mapped when needed).
-- **`.agents/skills/`** = staging / CLI layout; **`skills/`** = SkillPilot router catalog.
-- Do not use **`npx skills add -g`** when curating for this project unless you also import into `skills/`.
+- Ecosystem front matter (`name` / `description`) is normalized to **`id`**, **`title`**, **`summary`**; quoted phrases in `description` may become **`triggers`** when omitted.
+- Folder name **must** match YAML **`id`**.
+- Do not use **`npx skills add -g`** when curating this project unless you also copy into `.agents/skills` here.

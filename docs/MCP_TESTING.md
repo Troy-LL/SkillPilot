@@ -4,7 +4,7 @@
 
 ```bash
 npm test          # build + node:test unit tests
-npm run smoke     # stdio MCP: list → begin_task → get_session → end_task ×2
+npm run smoke     # stdio MCP: list, skill_plan, begin_task, health, end_task (.agents/skills)
 ```
 
 CI runs `npm ci`, `npm test`, and `npm run smoke` on pull requests.
@@ -18,7 +18,7 @@ CI runs `npm ci`, `npm test`, and `npm run smoke` on pull requests.
 From the repo root after `npm run build`:
 
 ```bash
-npx @modelcontextprotocol/inspector node dist/index.js --skill-root ./skills
+npx @modelcontextprotocol/inspector node dist/index.js --skill-root ./.agents/skills
 ```
 
 Use the Inspector UI to call lifecycle tools (**`begin_task`**, **`get_session`**, **`end_task`**) or low-level tools (**`list`**, **`select`**, **`load`**, **`cleanup`**, **`ingest`**). Set `SKILL_ROOT` via `--skill-root` or `env` in the Inspector launch config if needed.

@@ -1,4 +1,19 @@
 ---
+id: find-skills
+title: Find Skills
+summary: Discover and install agent skills from the open ecosystem (skills.sh, npx skills find/add).
+tags:
+  - discovery
+  - skills
+  - ecosystem
+triggers:
+  - find a skill
+  - find skills
+  - npx skills find
+  - npx skills add
+  - skills.sh
+  - discover skills
+  - install skill
 name: find-skills
 description: Helps users discover and install agent skills when they ask questions like "how do I do X", "find a skill for X", "is there a skill that can...", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill.
 ---

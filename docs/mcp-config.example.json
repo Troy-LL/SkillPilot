@@ -2,9 +2,9 @@
   "mcpServers": {
     "skillpilot": {
       "command": "node",
-      "args": ["P:\\Troy\\Code\\Tools\\SkillPilot\\dist\\index.js"],
+      "args": ["<REPO>/SkillPilot/dist/index.js"],
       "env": {
-        "SKILL_ROOT": "P:\\Troy\\Code\\Tools\\SkillPilot\\skills"
+        "SKILL_ROOT": "<REPO>/SkillPilot/.agents/skills"
       }
     }
   }

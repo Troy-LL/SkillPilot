@@ -125,7 +125,12 @@ function readAndNormalizeSource(
 export function resolveRepoRoot(skillRoot: string, repoRootArg?: string): string {
   if (repoRootArg) return path.resolve(repoRootArg);
   const root = path.resolve(skillRoot);
-  return path.basename(root) === 'skills' ? path.dirname(root) : root;
+  if (path.basename(root) === 'skills') {
+    const parent = path.dirname(root);
+    if (path.basename(parent) === '.agents') return path.dirname(parent);
+    return parent;
+  }
+  return root;
 }
 
 export function importSkillFromPath(

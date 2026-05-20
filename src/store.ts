@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseSkillMarkdown } from './parse.js';
+import { SkillPilotError } from './errors.js';
+import { parseSkillFile } from './parse.js';
 import type { SkillFrontMatter } from './parse.js';
 import { validatePrimarySize } from './validate.js';
 
@@ -21,9 +22,7 @@ export type SkillIndex =
   | {
       ok: true;
       skills: SkillListEntry[];
-      /** skill id -> absolute path to SKILL.md */
       paths: Map<string, string>;
-      /** skill id -> parsed front matter (for select / ranking) */
       metas: Map<string, SkillFrontMatter>;
     }
   | {
@@ -31,6 +30,8 @@ export type SkillIndex =
       error: string;
       failures: IndexFailure[];
     };
+
+let indexCache: { rootReal: string; mtimeMs: number; index: SkillIndex } | null = null;
 
 function realPathBestEffort(p: string): string {
   try {
@@ -43,16 +44,20 @@ function realPathBestEffort(p: string): string {
 export function resolveSkillRoot(rootArg: string): string {
   const resolved = path.resolve(rootArg);
   if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
-    throw new Error(`SKILL_ROOT is not a directory: ${resolved}`);
+    throw new SkillPilotError('STORE_UNAVAILABLE', `SKILL_ROOT is not a directory: ${resolved}`);
   }
   return realPathBestEffort(resolved);
+}
+
+export function invalidateIndexCache(): void {
+  indexCache = null;
 }
 
 /** Ensure candidate is under root (after resolve). */
 export function assertPathUnderRoot(rootReal: string, candidateAbs: string): void {
   const rel = path.relative(rootReal, candidateAbs);
   if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new Error('path resolves outside skill root');
+    throw new SkillPilotError('PATH_ESCAPE', 'path resolves outside skill root');
   }
 }
 
@@ -83,7 +88,8 @@ export function buildIndex(skillRoot: string): SkillIndex {
     const folder = d.name;
     try {
       const { text } = readSkillFile(rootReal, folder);
-      const { meta } = parseSkillMarkdown(text, folder);
+      const { meta } = parseSkillFile(text, folder);
+      if (meta.inject === false) continue;
       entries.push({ folder, meta });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -104,10 +110,13 @@ export function buildIndex(skillRoot: string): SkillIndex {
       failures,
     };
   }
-  if (failures.length > 0) {
+  if (entries.length === 0) {
     return {
       ok: false,
-      error: `Skill store has ${failures.length} invalid skill folder(s); fix or remove before listing.`,
+      error:
+        failures.length > 0
+          ? `Skill store has no valid skills (${failures.length} folder(s) failed validation).`
+          : 'Skill store is empty.',
       failures,
     };
   }
@@ -129,14 +138,38 @@ export function buildIndex(skillRoot: string): SkillIndex {
   return { ok: true, skills, paths, metas };
 }
 
-export function loadSkillBody(skillRoot: string, skillId: string): { meta: SkillFrontMatter; body: string } {
+export function getSkillIndex(skillRoot: string): SkillIndex {
+  const rootReal = resolveSkillRoot(skillRoot);
+  let mtimeMs = 0;
+  try {
+    mtimeMs = fs.statSync(rootReal).mtimeMs;
+  } catch {
+    return buildIndex(skillRoot);
+  }
+  if (
+    indexCache &&
+    indexCache.rootReal === rootReal &&
+    indexCache.mtimeMs === mtimeMs
+  ) {
+    return indexCache.index;
+  }
   const index = buildIndex(skillRoot);
+  indexCache = { rootReal, mtimeMs, index };
+  return index;
+}
+
+export function loadSkillBody(
+  skillRoot: string,
+  skillId: string,
+): { meta: SkillFrontMatter; body: string } {
+  const index = getSkillIndex(skillRoot);
   if (!index.ok) {
-    throw new Error(index.error);
+    throw new SkillPilotError('STORE_UNAVAILABLE', index.error);
   }
   const file = index.paths.get(skillId);
   if (!file) {
-    throw new Error(
+    throw new SkillPilotError(
+      'SKILL_NOT_FOUND',
       `Unknown skill_id: ${skillId}. Call the list tool for available skill ids.`,
     );
   }
@@ -149,7 +182,7 @@ export function loadSkillBody(skillRoot: string, skillId: string): { meta: Skill
   validatePrimarySize(buf);
   const text = buf.toString('utf8');
   const folder = path.basename(path.dirname(file));
-  return parseSkillMarkdown(text, folder);
+  return parseSkillFile(text, folder);
 }
 
 export function formatIndexError(index: Extract<SkillIndex, { ok: false }>): string {

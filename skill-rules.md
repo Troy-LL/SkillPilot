@@ -8,7 +8,7 @@ Authoritative rules for **canonical skill identity**, **metadata**, and **store 
 
 | Term | Meaning |
 |------|--------|
-| **Skill root** | Configurable directory; no skill file resolves outside it. |
+| **Skill root** | Configurable directory (default **`.agents/skills/`** in this repo); no skill file resolves outside it. |
 | **Primary document** | The injectable file (e.g. `SKILL.md` or `*.skill`) that carries body + front matter. |
 | **`skill_id`** | Stable, unique machine identifier used in APIs, logs, TTL maps, and `load(skill_id)`. |
 | **Title** | Human-facing label; not used as the canonical API id. |

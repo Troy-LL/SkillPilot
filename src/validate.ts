@@ -82,6 +82,36 @@ export function validateTriggers(triggers: unknown): string[] | undefined {
   return out;
 }
 
+export function validateTokenEstimate(token_estimate: unknown): number | undefined {
+  if (token_estimate === undefined || token_estimate === null) return undefined;
+  if (typeof token_estimate !== 'number' || !Number.isInteger(token_estimate) || token_estimate < 1) {
+    throw new Error('token_estimate must be a positive integer');
+  }
+  return token_estimate;
+}
+
+export function validateInject(inject: unknown): boolean | undefined {
+  if (inject === undefined || inject === null) return undefined;
+  if (typeof inject !== 'boolean') throw new Error('inject must be a boolean');
+  return inject;
+}
+
+export function validateTtlSeconds(ttl_seconds: unknown): number | undefined {
+  if (ttl_seconds === undefined || ttl_seconds === null) return undefined;
+  if (typeof ttl_seconds !== 'number' || !Number.isInteger(ttl_seconds) || ttl_seconds < 0) {
+    throw new Error('ttl_seconds must be a non-negative integer');
+  }
+  return ttl_seconds;
+}
+
+export function validateMinConfidence(min_confidence: unknown): number | undefined {
+  if (min_confidence === undefined || min_confidence === null) return undefined;
+  if (typeof min_confidence !== 'number' || min_confidence < 0 || min_confidence > 1) {
+    throw new Error('min_confidence must be a number between 0 and 1');
+  }
+  return min_confidence;
+}
+
 export function validateClients(clients: unknown): string[] | undefined {
   if (clients === undefined || clients === null) return undefined;
   if (!Array.isArray(clients)) throw new Error('clients must be an array of strings');

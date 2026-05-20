@@ -1,12 +1,17 @@
 import { parse as parseYaml } from 'yaml';
+import { estimateTokens } from './token-estimate.js';
 import {
   isValidSkillId,
   validateBodyUtf8Length,
   validateClients,
+  validateInject,
+  validateMinConfidence,
   validateSummary,
   validateTags,
   validateTitle,
+  validateTokenEstimate,
   validateTriggers,
+  validateTtlSeconds,
   validateVersion,
 } from './validate.js';
 
@@ -18,6 +23,10 @@ export type SkillFrontMatter = {
   triggers?: string[];
   version?: string;
   clients?: string[];
+  token_estimate?: number;
+  inject?: boolean;
+  ttl_seconds?: number;
+  min_confidence?: number;
 };
 
 export type ParsedSkillFile = {
@@ -27,16 +36,97 @@ export type ParsedSkillFile = {
 
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
 
-export function parseSkillMarkdown(rawUtf8: string, folderDerivedId: string): ParsedSkillFile {
+/** Pull quoted example phrases from ecosystem `description` into triggers when omitted. */
+function deriveTriggersFromDescription(description: string): string[] | undefined {
+  const triggers: string[] = [];
+  const re = /"([^"]{3,64})"/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(description)) !== null) {
+    const phrase = m[1]!.trim().toLowerCase();
+    if (phrase.length >= 3) triggers.push(phrase);
+  }
+  return triggers.length > 0 ? triggers.slice(0, 10) : undefined;
+}
+
+function slugFromFolder(folder: string): string {
+  return folder
+    .toLowerCase()
+    .replace(/_/g, '-')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function normalizeId(candidate: string, folder: string): string {
+  const raw = candidate.trim() || folder;
+  const slug = slugFromFolder(raw);
+  if (!isValidSkillId(slug)) {
+    throw new Error(
+      `Cannot derive valid skill_id from "${raw}". Folder "${folder}" must match skill-rules §2.`,
+    );
+  }
+  return slug;
+}
+
+function metaFromFrontMatterRecord(
+  rec: Record<string, unknown>,
+  folderDerivedId: string,
+): SkillFrontMatter {
+  const hasStrictId = typeof rec['id'] === 'string' && isValidSkillId(rec['id']);
+  const id = hasStrictId
+    ? (rec['id'] as string)
+    : normalizeId(String(rec['name'] ?? folderDerivedId), folderDerivedId);
+
+  const titleRaw =
+    typeof rec['title'] === 'string' && rec['title'].length > 0
+      ? rec['title']
+      : typeof rec['name'] === 'string'
+        ? rec['name']
+        : folderDerivedId;
+
+  let summaryRaw =
+    typeof rec['summary'] === 'string' && rec['summary'].length > 0
+      ? rec['summary']
+      : typeof rec['description'] === 'string'
+        ? rec['description'].split('\n')[0]!
+        : titleRaw;
+  if (summaryRaw.length > 300) summaryRaw = summaryRaw.slice(0, 297) + '...';
+
+  let triggers = validateTriggers(rec['triggers']);
+  if (!triggers?.length && typeof rec['description'] === 'string') {
+    triggers = deriveTriggersFromDescription(rec['description']);
+  }
+
+  const inject = validateInject(rec['inject']) ?? true;
+  let token_estimate = validateTokenEstimate(rec['token_estimate']);
+  if (token_estimate === undefined) {
+    token_estimate = estimateTokens(String(rec['description'] ?? summaryRaw));
+  }
+
+  return {
+    id,
+    title: validateTitle(titleRaw),
+    summary: validateSummary(summaryRaw),
+    tags: validateTags(rec['tags']),
+    triggers,
+    version: validateVersion(rec['version']),
+    clients: validateClients(rec['clients']),
+    token_estimate,
+    inject,
+    ttl_seconds: validateTtlSeconds(rec['ttl_seconds']),
+    min_confidence: validateMinConfidence(rec['min_confidence']),
+  };
+}
+
+/** Parse SKILL.md with ecosystem aliases (name/description) or strict SkillPilot front matter. */
+export function parseSkillFile(rawUtf8: string, folderDerivedId: string): ParsedSkillFile {
   const m = rawUtf8.match(FRONT_MATTER);
   if (!m?.[1] || m[2] === undefined) {
     throw new Error('SKILL.md must start with YAML front matter delimited by --- lines');
   }
-  const yamlBlock = m[1];
-  const body = m[2];
   let data: unknown;
   try {
-    data = parseYaml(yamlBlock);
+    data = parseYaml(m[1]);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new Error(`Invalid YAML front matter: ${msg}`);
@@ -45,24 +135,17 @@ export function parseSkillMarkdown(rawUtf8: string, folderDerivedId: string): Pa
     throw new Error('YAML front matter must parse to a mapping object');
   }
   const rec = data as Record<string, unknown>;
-  const idRaw = rec['id'];
-  if (typeof idRaw !== 'string' || !isValidSkillId(idRaw)) {
-    throw new Error('front matter id must match skill-rules §2');
-  }
-  if (idRaw !== folderDerivedId) {
+  const meta = metaFromFrontMatterRecord(rec, folderDerivedId);
+  if (meta.id !== folderDerivedId) {
     throw new Error(
-      `id "${idRaw}" does not match folder name "${folderDerivedId}" (v1-exceptions.md: strict folder vs front matter)`,
+      `id "${meta.id}" does not match folder name "${folderDerivedId}" (rename folder or fix front matter)`,
     );
   }
-  const meta: SkillFrontMatter = {
-    id: idRaw,
-    title: validateTitle(rec['title']),
-    summary: validateSummary(rec['summary']),
-    tags: validateTags(rec['tags']),
-    triggers: validateTriggers(rec['triggers']),
-    version: validateVersion(rec['version']),
-    clients: validateClients(rec['clients']),
-  };
+  const body = m[2];
   validateBodyUtf8Length(body);
   return { meta, body };
+}
+
+export function parseSkillMarkdown(rawUtf8: string, folderDerivedId: string): ParsedSkillFile {
+  return parseSkillFile(rawUtf8, folderDerivedId);
 }

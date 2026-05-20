@@ -1,9 +1,13 @@
 import { randomUUID } from 'node:crypto';
+import type { SkillPilotConfig } from './config.js';
 import { CorrelationRegistry } from './correlation-registry.js';
 import { DEFAULT_TTL_MS, MAX_SELECT_INPUT_CHARS } from './constants.js';
+import { SkillPilotError } from './errors.js';
+import { logToolOk } from './observability.js';
 import { resolveRepoRoot } from './import-skill.js';
-import { selectSkill } from './select.js';
-import type { SelectResult } from './select.js';
+import { getSelector } from './selector/index.js';
+import type { SelectResult } from './selector/types.js';
+import { shapeSkillBody } from './shape-body.js';
 import {
   clearSession,
   readSession,
@@ -11,7 +15,7 @@ import {
   writeSession,
 } from './session-store.js';
 import { buildSessionSummary, promptFingerprint } from './session-summary.js';
-import { buildIndex, formatIndexError, loadSkillBody } from './store.js';
+import { formatIndexError, getSkillIndex, loadSkillBody } from './store.js';
 import { isValidSkillId } from './validate.js';
 
 const correlationRegistry = new CorrelationRegistry();
@@ -22,24 +26,28 @@ export type LoadEpisodeResult = {
   skill_id: string;
   title: string;
   body: string;
+  token_estimate: number;
+  ttl_hint: number;
   ttl_ms: number;
   correlation_id: string;
+  merge_hint: { role: 'system'; ephemeral: boolean };
 };
 
 export type BeginTaskInput = {
   prompt: string;
   goal?: string;
+  context?: string;
   client?: string;
   workspace_path?: string;
   skill_id?: string;
   phase?: string;
+  token_budget?: number;
   end_previous?: boolean;
   response_detail?: ResponseDetail;
 };
 
 export type BeginTaskResultFull = LoadEpisodeResult &
   Pick<SelectResult, 'confidence' | 'rationale' | 'warnings' | 'alternatives'> & {
-    title: string;
     summary: string;
     previous_ended: boolean;
   };
@@ -51,6 +59,7 @@ export type EndTaskResult = {
   ok: true;
   correlation_id: string;
   skill_id?: string;
+  evicted_at?: string;
 };
 
 export type GetSessionOptions = {
@@ -75,14 +84,6 @@ export type GetSessionResult =
       body?: string;
     };
 
-function logInfo(skillId: string | undefined, correlationId: string | undefined, version?: string): void {
-  const parts = ['skillpilot'];
-  if (skillId) parts.push(`skill_id=${skillId}`);
-  if (correlationId) parts.push(`correlation_id=${correlationId}`);
-  if (version) parts.push(`version=${version}`);
-  process.stderr.write(`${parts.join(' ')}\n`);
-}
-
 export function validateSkillIdForLoad(skill_id: string): string | null {
   if (!isValidSkillId(skill_id)) {
     return `Invalid skill_id (must match skill-rules §2): ${skill_id}. Call the list tool for valid ids.`;
@@ -93,26 +94,54 @@ export function validateSkillIdForLoad(skill_id: string): string | null {
   return null;
 }
 
-export function loadSkillEpisode(skillRoot: string, skillId: string): LoadEpisodeResult {
+function ttlMsFromMeta(meta: { ttl_seconds?: number }, config: SkillPilotConfig): number {
+  if (meta.ttl_seconds !== undefined && meta.ttl_seconds > 0) {
+    return meta.ttl_seconds * 1000;
+  }
+  return config.ttlSeconds > 0 ? config.ttlSeconds * 1000 : DEFAULT_TTL_MS;
+}
+
+export function loadSkillEpisode(
+  skillRoot: string,
+  skillId: string,
+  config: SkillPilotConfig,
+  correlationId?: string,
+): LoadEpisodeResult {
   const err = validateSkillIdForLoad(skillId);
-  if (err) throw new Error(err);
-  const { meta, body } = loadSkillBody(skillRoot, skillId);
-  const correlation_id = randomUUID();
+  if (err) throw new SkillPilotError('VALIDATION_ERROR', err);
+
+  const { meta, body: rawBody } = loadSkillBody(skillRoot, skillId);
+  const shaped = shapeSkillBody(rawBody, config.maxInjectBytes);
+  const correlation_id = correlationId ?? randomUUID();
   correlationRegistry.add(correlation_id);
-  logInfo(meta.id, correlation_id, meta.version);
+  const ttl_ms = ttlMsFromMeta(meta, config);
+
+  logToolOk('skill_inject', {
+    skill_id: meta.id,
+    correlation_id,
+    token_estimate: shaped.token_estimate,
+    version: meta.version,
+  });
+
   return {
     skill_id: meta.id,
     title: meta.title,
-    body,
-    ttl_ms: DEFAULT_TTL_MS,
+    body: shaped.body,
+    token_estimate: shaped.token_estimate,
+    ttl_hint: Math.floor(ttl_ms / 1000),
+    ttl_ms,
     correlation_id,
+    merge_hint: { role: 'system', ephemeral: true },
   };
 }
 
 export function runCleanup(correlation_id: string): EndTaskResult {
   correlationRegistry.delete(correlation_id);
-  logInfo(undefined, correlation_id, undefined);
-  return { ok: true, correlation_id };
+  return {
+    ok: true,
+    correlation_id,
+    evicted_at: new Date().toISOString(),
+  };
 }
 
 function shapeBeginTaskResult(
@@ -124,19 +153,28 @@ function shapeBeginTaskResult(
   return rest;
 }
 
-export function beginTask(skillRoot: string, repoRoot: string, input: BeginTaskInput): BeginTaskResult {
+export function beginTask(
+  skillRoot: string,
+  repoRoot: string,
+  config: SkillPilotConfig,
+  input: BeginTaskInput,
+): BeginTaskResult {
   const trimmedPrompt = input.prompt.trim();
   if (!trimmedPrompt && !(input.goal?.trim())) {
-    throw new Error('begin_task requires a non-empty prompt or goal.');
+    throw new SkillPilotError('VALIDATION_ERROR', 'begin_task requires a non-empty prompt or goal.');
   }
   if (
     input.prompt.length > MAX_SELECT_INPUT_CHARS ||
     (input.goal?.length ?? 0) > MAX_SELECT_INPUT_CHARS
   ) {
-    throw new Error(`prompt and goal must each be at most ${MAX_SELECT_INPUT_CHARS} characters.`);
+    throw new SkillPilotError(
+      'VALIDATION_ERROR',
+      `prompt and goal must each be at most ${MAX_SELECT_INPUT_CHARS} characters.`,
+    );
   }
 
   const responseDetail: ResponseDetail = input.response_detail ?? 'summary';
+  const selector = getSelector(config);
 
   let previous_ended = false;
   if (input.end_previous !== false) {
@@ -156,16 +194,19 @@ export function beginTask(skillRoot: string, repoRoot: string, input: BeginTaskI
   };
 
   if (!skillId) {
-    const index = buildIndex(skillRoot);
-    if (!index.ok) throw new Error(formatIndexError(index));
-    const result = selectSkill([...index.metas.values()], {
+    const index = getSkillIndex(skillRoot);
+    if (!index.ok) throw new SkillPilotError('STORE_UNAVAILABLE', formatIndexError(index));
+    const result = selector.select([...index.metas.values()], {
       prompt: trimmedPrompt || input.goal!.trim(),
       goal: input.goal?.trim(),
+      context: input.context?.trim(),
       client: input.client?.trim(),
       workspace_path: input.workspace_path?.trim(),
+      token_budget: input.token_budget ?? config.defaultTokenBudget,
     });
     if (!result.skill_id) {
-      throw new Error(
+      throw new SkillPilotError(
+        'VALIDATION_ERROR',
         result.rationale +
           (result.warnings?.length ? ` warnings: ${result.warnings.join(', ')}` : ''),
       );
@@ -174,10 +215,10 @@ export function beginTask(skillRoot: string, repoRoot: string, input: BeginTaskI
     selectExtras = result;
   } else {
     const err = validateSkillIdForLoad(skillId);
-    if (err) throw new Error(err);
+    if (err) throw new SkillPilotError('VALIDATION_ERROR', err);
   }
 
-  const episode = loadSkillEpisode(skillRoot, skillId);
+  const episode = loadSkillEpisode(skillRoot, skillId, config);
   const summary = buildSessionSummary(episode.title, selectExtras.rationale);
 
   const sessionPayload: SkillSessionWrite = {
@@ -215,7 +256,8 @@ export function endTask(
   const session = readSession(repoRoot);
   const id = correlation_id?.trim() || session?.correlation_id;
   if (!id) {
-    throw new Error(
+    throw new SkillPilotError(
+      'VALIDATION_ERROR',
       'No active session. Call begin_task first or pass correlation_id from the load response.',
     );
   }
@@ -227,6 +269,7 @@ export function endTask(
 export function getSession(
   skillRoot: string,
   repoRoot: string,
+  config: SkillPilotConfig,
   options?: GetSessionOptions,
 ): GetSessionResult {
   const session = readSession(repoRoot);
@@ -254,8 +297,8 @@ export function getSession(
   };
 
   if (includeBody) {
-    const { body } = loadSkillBody(skillRoot, session.skill_id);
-    return { ...base, body };
+    const episode = loadSkillEpisode(skillRoot, session.skill_id, config);
+    return { ...base, body: episode.body };
   }
 
   return base;

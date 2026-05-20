@@ -1,0 +1,8 @@
+{
+  "skillsRoot": "./.agents/skills",
+  "selector": "heuristic",
+  "maxInjectBytes": 8192,
+  "defaultTokenBudget": 2048,
+  "ttlSeconds": 300,
+  "log": { "level": "info" }
+}
