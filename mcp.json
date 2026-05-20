@@ -2,7 +2,7 @@
   "mcpServers": {
     "skillpilot": {
       "command": "node",
-      "args": ["<REPO>/SkillPilot/scripts/run-mcp.mjs"],
+      "args": ["scripts/run-mcp.mjs"],
       "env": {}
     }
   }

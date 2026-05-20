@@ -1,13 +1,17 @@
 /**
- * Cursor beforeSubmitPrompt hook (Sprint F): auto begin_task when no active session.
- * Fail-open; writes .skillpilot/active-body.md bridge when routing succeeds.
+ * beforeSubmitPrompt: auto begin_task when no active session (fail-open).
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {
+  hookScriptDir,
+  resolveServerRoot,
+  resolveSkillRoot,
+  workspaceRoots,
+} from '../scripts/hook-paths.mjs';
 
-const HOOK_SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const HOOK_SCRIPT_DIR = hookScriptDir(import.meta.url);
 
 async function readStdinJson() {
   const chunks = [];
@@ -19,25 +23,13 @@ async function readStdinJson() {
   return JSON.parse(raw);
 }
 
-function uniqueRoots(hookInput) {
-  const roots = new Set();
-  if (Array.isArray(hookInput.workspace_roots)) {
-    for (const r of hookInput.workspace_roots) {
-      if (typeof r === 'string' && r.trim()) roots.add(path.resolve(r.trim()));
-    }
-  }
-  roots.add(process.cwd());
-  roots.add(path.resolve(HOOK_SCRIPT_DIR, '..', '..'));
-  return [...roots];
-}
-
-function isOptedOut(repoRoot) {
+function isOptedOut(workspaceRoot) {
   if (process.env.SKILLPILOT_SKIP_AUTO_BEGIN === '1') return true;
-  return fs.existsSync(path.join(repoRoot, '.skillpilot', 'disable-auto-begin'));
+  return fs.existsSync(path.join(workspaceRoot, '.skillpilot', 'disable-auto-begin'));
 }
 
-function readSession(repoRoot) {
-  const file = path.join(repoRoot, '.skillpilot', 'session.json');
+function readSession(workspaceRoot) {
+  const file = path.join(workspaceRoot, '.skillpilot', 'session.json');
   if (!fs.existsSync(file)) return null;
   try {
     const session = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -55,23 +47,21 @@ function isSessionActive(session) {
   return started + ttl > Date.now();
 }
 
-function runCleanup(repoRoot, correlationId) {
-  const serverEntry = path.join(repoRoot, 'dist', 'index.js');
-  const skillRoot = path.join(repoRoot, 'skills');
-  const cleanupScript = path.join(repoRoot, 'scripts', 'extension-cleanup.mjs');
+function runCleanup(serverRoot, skillRoot, correlationId) {
+  const serverEntry = path.join(serverRoot, 'dist', 'index.js');
+  const cleanupScript = path.join(serverRoot, 'scripts', 'extension-cleanup.mjs');
   if (!fs.existsSync(serverEntry) || !fs.existsSync(cleanupScript)) return false;
   const result = spawnSync(
     process.execPath,
     [cleanupScript, correlationId, serverEntry, skillRoot],
-    { cwd: repoRoot, encoding: 'utf8', windowsHide: true, env: process.env },
+    { cwd: serverRoot, encoding: 'utf8', windowsHide: true, env: process.env },
   );
   return result.status === 0;
 }
 
-function runBeginTask(repoRoot, prompt) {
-  const serverEntry = path.join(repoRoot, 'dist', 'index.js');
-  const skillRoot = path.join(repoRoot, 'skills');
-  const beginScript = path.join(repoRoot, 'scripts', 'extension-begin-task.mjs');
+function runBeginTask(serverRoot, skillRoot, prompt) {
+  const serverEntry = path.join(serverRoot, 'dist', 'index.js');
+  const beginScript = path.join(serverRoot, 'scripts', 'extension-begin-task.mjs');
   if (!fs.existsSync(serverEntry)) {
     process.stderr.write(
       `skillpilot-auto-begin: missing ${serverEntry} (run npm run build)\n`,
@@ -87,7 +77,7 @@ function runBeginTask(repoRoot, prompt) {
     process.execPath,
     [beginScript, serverEntry, skillRoot],
     {
-      cwd: repoRoot,
+      cwd: serverRoot,
       encoding: 'utf8',
       windowsHide: true,
       env: { ...process.env, SKILLPILOT_PROMPT: prompt },
@@ -110,8 +100,8 @@ function runBeginTask(repoRoot, prompt) {
   }
 }
 
-function writeActiveBody(repoRoot, skillId, body) {
-  const dir = path.join(repoRoot, '.skillpilot');
+function writeActiveBody(workspaceRoot, skillId, body) {
+  const dir = path.join(workspaceRoot, '.skillpilot');
   fs.mkdirSync(dir, { recursive: true });
   const header = `<!-- SkillPilot ephemeral bridge — do not commit. skill_id: ${skillId} -->\n\n`;
   fs.writeFileSync(path.join(dir, 'active-body.md'), header + body, 'utf8');
@@ -129,13 +119,16 @@ async function main() {
     return;
   }
 
-  for (const repoRoot of uniqueRoots(hookInput)) {
-    if (isOptedOut(repoRoot)) {
-      log(`skipped (opt-out) for ${repoRoot}`);
+  const serverRoot = resolveServerRoot(HOOK_SCRIPT_DIR);
+  const skillRoot = resolveSkillRoot(serverRoot);
+
+  for (const workspaceRoot of workspaceRoots(hookInput, HOOK_SCRIPT_DIR)) {
+    if (isOptedOut(workspaceRoot)) {
+      log(`skipped (opt-out) for ${workspaceRoot}`);
       break;
     }
 
-    const hit = readSession(repoRoot);
+    const hit = readSession(workspaceRoot);
     if (hit && isSessionActive(hit.session)) {
       log(`active session ${hit.session.skill_id}; skip begin_task`);
       break;
@@ -143,7 +136,7 @@ async function main() {
 
     if (hit && !isSessionActive(hit.session)) {
       log(`session expired for ${hit.session.skill_id}; cleanup then begin`);
-      runCleanup(repoRoot, hit.session.correlation_id);
+      runCleanup(serverRoot, skillRoot, hit.session.correlation_id);
       try {
         fs.unlinkSync(hit.file);
       } catch {
@@ -151,9 +144,9 @@ async function main() {
       }
     }
 
-    const payload = runBeginTask(repoRoot, prompt);
+    const payload = runBeginTask(serverRoot, skillRoot, prompt);
     if (payload?.skill_id && payload?.body) {
-      writeActiveBody(repoRoot, payload.skill_id, payload.body);
+      writeActiveBody(workspaceRoot, payload.skill_id, payload.body);
       log(`routed to ${payload.skill_id}`);
     }
     break;

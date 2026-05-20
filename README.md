@@ -74,16 +74,18 @@ Point your MCP host at the built server and set the skill root:
   "mcpServers": {
     "skillpilot": {
       "command": "node",
-      "args": ["<REPO>/SkillPilot/dist/index.js"],
-      "env": {
-        "SKILL_ROOT": "<REPO>/SkillPilot/.agents/skills"
-      }
+      "args": ["<REPO>/SkillPilot/scripts/run-mcp.mjs"],
+      "env": {}
     }
   }
 }
 ```
 
-See [`docs/mcp-config.example.json`](docs/mcp-config.example.json) for a full template.
+`run-mcp.mjs` sets `SKILL_ROOT` and `SKILLPILOT_SKILLS_META_DIR` from the repo. See [`docs/mcp-config.example.json`](docs/mcp-config.example.json).
+
+### Cursor Marketplace plugin
+
+This repo includes [`.cursor-plugin/plugin.json`](.cursor-plugin/plugin.json) for the [Cursor Marketplace](https://cursor.com/marketplace). Local test and submission steps: [`docs/PUBLISHING.md`](docs/PUBLISHING.md).
 
 **Verify locally:**
 
@@ -172,8 +174,11 @@ MCP protocol traffic uses **stdout** only; logs go to **stderr** as structured J
 
 ```text
 SkillPilot/
+├── .cursor-plugin/          ← Cursor Marketplace manifest
 ├── .agents/skills/          ← canonical skill catalog (SKILL.md per skill)
 ├── .agents/skills-meta/     ← SkillPilot overlays (tags, triggers, inject defaults)
+├── hooks/                   ← plugin hooks (auto-begin, session-end)
+├── mcp.json                 ← portable MCP config for plugin installs
 ├── src/                     ← MCP server (TypeScript)
 ├── skillpilot_docs/         ← architecture, spec, token strategy, roadmap
 ├── docs/                    ← host setup, catalog, context engineering
@@ -194,9 +199,10 @@ The legacy `skills/` directory is optional — used only if you dogfood the `ing
 | [Host setup](docs/HOST_MCP_SETUP.md) | Cursor and VS Code MCP wiring |
 | [Skills catalog](docs/SKILLS_CATALOG.md) | Install, overlay, and route skills |
 | [Autonomous usage](docs/AUTONOMOUS_USAGE.md) | Hooks, session file, agent policy |
+| [Publishing](docs/PUBLISHING.md) | Cursor Marketplace plugin checklist |
 
 ---
 
 ## License
 
-ISC — see package metadata. Dependencies are permissive open source (MIT / Apache 2.0 / BSD).
+ISC — see [LICENSE](LICENSE). Dependencies are permissive open source (MIT / Apache 2.0 / BSD). Bundled ecosystem skills retain their own licenses under `.agents/skills/`.

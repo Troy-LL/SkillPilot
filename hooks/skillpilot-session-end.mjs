@@ -1,13 +1,17 @@
 /**
- * Cursor sessionEnd hook (Sprint E2): MCP cleanup + clear .skillpilot/session.json.
- * Reads hook JSON from stdin; logs to stderr; prints {} on stdout (fire-and-forget).
+ * sessionEnd: MCP cleanup + clear workspace .skillpilot/session.json.
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {
+  hookScriptDir,
+  resolveServerRoot,
+  resolveSkillRoot,
+  workspaceRoots,
+} from '../scripts/hook-paths.mjs';
 
-const HOOK_SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const HOOK_SCRIPT_DIR = hookScriptDir(import.meta.url);
 
 async function readStdinJson() {
   const chunks = [];
@@ -19,20 +23,8 @@ async function readStdinJson() {
   return JSON.parse(raw);
 }
 
-function uniqueRoots(hookInput) {
-  const roots = new Set();
-  if (Array.isArray(hookInput.workspace_roots)) {
-    for (const r of hookInput.workspace_roots) {
-      if (typeof r === 'string' && r.trim()) roots.add(path.resolve(r.trim()));
-    }
-  }
-  roots.add(process.cwd());
-  roots.add(path.resolve(HOOK_SCRIPT_DIR, '..', '..'));
-  return [...roots];
-}
-
-function readSession(repoRoot) {
-  const file = path.join(repoRoot, '.skillpilot', 'session.json');
+function readSession(workspaceRoot) {
+  const file = path.join(workspaceRoot, '.skillpilot', 'session.json');
   if (!fs.existsSync(file)) return null;
   try {
     const session = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -43,11 +35,9 @@ function readSession(repoRoot) {
   }
 }
 
-function runCleanup(repoRoot, correlationId) {
-  const serverEntry = path.join(repoRoot, 'dist', 'index.js');
-  const skillRoot = path.join(repoRoot, 'skills');
-  const cleanupScript = path.join(repoRoot, 'scripts', 'extension-cleanup.mjs');
-
+function runCleanup(serverRoot, skillRoot, correlationId) {
+  const serverEntry = path.join(serverRoot, 'dist', 'index.js');
+  const cleanupScript = path.join(serverRoot, 'scripts', 'extension-cleanup.mjs');
   if (!fs.existsSync(serverEntry)) {
     process.stderr.write(
       `skillpilot-session-end: missing ${serverEntry} (run npm run build)\n`,
@@ -62,7 +52,7 @@ function runCleanup(repoRoot, correlationId) {
   const result = spawnSync(
     process.execPath,
     [cleanupScript, correlationId, serverEntry, skillRoot],
-    { cwd: repoRoot, encoding: 'utf8', windowsHide: true },
+    { cwd: serverRoot, encoding: 'utf8', windowsHide: true },
   );
 
   if (result.status !== 0) {
@@ -82,16 +72,18 @@ function log(eventName, message) {
 async function main() {
   const hookInput = await readStdinJson();
   const eventName = hookInput.hook_event_name ?? 'sessionEnd';
+  const serverRoot = resolveServerRoot(HOOK_SCRIPT_DIR);
+  const skillRoot = resolveSkillRoot(serverRoot);
 
-  for (const repoRoot of uniqueRoots(hookInput)) {
-    const hit = readSession(repoRoot);
+  for (const workspaceRoot of workspaceRoots(hookInput, HOOK_SCRIPT_DIR)) {
+    const hit = readSession(workspaceRoot);
     if (!hit) continue;
 
     const { correlation_id, skill_id } = hit.session;
-    const cleaned = runCleanup(repoRoot, correlation_id);
+    const cleaned = runCleanup(serverRoot, skillRoot, correlation_id);
     if (cleaned) {
       fs.unlinkSync(hit.file);
-      const bodyFile = path.join(repoRoot, '.skillpilot', 'active-body.md');
+      const bodyFile = path.join(workspaceRoot, '.skillpilot', 'active-body.md');
       if (fs.existsSync(bodyFile)) fs.unlinkSync(bodyFile);
       log(eventName, `cleanup ok for ${skill_id} (${correlation_id})`);
     } else {
