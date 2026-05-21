@@ -3,8 +3,9 @@
 ## Automated
 
 ```bash
-npm test          # build + node:test unit tests
-npm run smoke     # stdio MCP lifecycle + compact inject (see below)
+npm test           # build + node:test unit tests
+npm run smoke      # stdio MCP lifecycle + compact inject (see below)
+npm run test:setup # postinstall + setup script validation
 ```
 
 CI runs `npm ci`, `npm test`, and `npm run smoke` on pull requests.
@@ -53,8 +54,8 @@ npx @modelcontextprotocol/inspector node dist/index.js --skill-root ./.agents/sk
 
 Use the Inspector UI to call lifecycle tools (**`begin_task`**, **`get_session`**, **`end_task`**) or low-level tools (**`list`**, **`select`**, **`load`**, **`cleanup`**).
 
-**SKILL_ROOT:** prefer `"${workspaceFolder}/.agents/skills"` in MCP `env`. If your host does not expand `${workspaceFolder}`, omit `SKILL_ROOT` and pass `--skill-root` in `args`, or rely on server discovery (walks up from cwd for `.agents/skills`, then bundled catalog). Literal `${workspaceFolder}` in env is ignored.
+**SKILL_ROOT resolution order:** `--skill-root` arg → `SKILL_ROOT` env (ignored if literal `${workspaceFolder}`) → `skilling.config.json` → walk up from cwd for `.agents/skills` → bundled catalog. Use `npx skilling setup` to write absolute paths automatically; do not rely on `${workspaceFolder}` in MCP env as most hosts do not expand it.
 
-## Cursor (verified)
+## All MCP-compatible hosts (verified)
 
-Stdio MCP behavior is host-agnostic once paths are correct. Use `npm run smoke` for a CLI lifecycle check.
+Stdio MCP behavior is host-agnostic once paths are correct. Use `npm run smoke` for a CLI lifecycle check from any host. See [`docs/HOST_MCP_SETUP.md`](HOST_MCP_SETUP.md) for per-host config shapes and the AI comprehension layer.

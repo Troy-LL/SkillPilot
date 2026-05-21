@@ -25,22 +25,7 @@ npm publish --access public
 
 First-time publishers need an npm account and a public GitHub repo ([Troy-LL/SkillPilot](https://github.com/Troy-LL/SkillPilot)).
 
-After publish, users install from **[cursor.directory/plugins/skilling](https://cursor.directory/plugins/skilling)** (full plugin; **Add to Cursor** on that page) or the README MCP deeplink badge (server only):
-
-
-```json
-{
-  "mcpServers": {
-    "skilling": {
-      "command": "npx",
-      "args": ["-y", "skilling@latest"],
-      "env": { "SKILL_ROOT": "${workspaceFolder}/.agents/skills" }
-    }
-  }
-}
-```
-
-Regenerate deeplink: `node scripts/generate-mcp-deeplink.mjs`
+After publish, users install from **[cursor.directory/plugins/skilling](https://cursor.directory/plugins/skilling)** (full plugin; **Add to Cursor** on that page) or via `npm install skilling` for zero-config auto-setup.
 
 ---
 
@@ -63,10 +48,13 @@ npm install && npm run build
 
 - [ ] `package.json` version bumped
 - [ ] `.cursor-plugin/plugin.json` version aligned
-- [ ] `npm run test` green
+- [ ] `npm test` green
+- [ ] `npm run test:setup` green (postinstall + setup script validation)
+- [ ] `npm run smoke` green (full MCP lifecycle)
 - [ ] `npm run pack:check` reviewed
 - [ ] README install section matches `mcp.json` / deeplink
-- [ ] Changelog or release notes for breaking renames (SkillPilot → Skilling, `.skillpilot/` → `.skilling/`)
+- [ ] `docs/HOST_MCP_SETUP.md` host compatibility table current
+- [ ] Changelog or release notes for breaking renames or new features
 
 ---
 
