@@ -21,8 +21,8 @@ From the repo root after `npm run build`:
 npx @modelcontextprotocol/inspector node dist/index.js --skill-root ./.agents/skills
 ```
 
-Use the Inspector UI to call lifecycle tools (**`begin_task`**, **`get_session`**, **`end_task`**) or low-level tools (**`list`**, **`select`**, **`load`**, **`cleanup`**, **`ingest`**). Set `SKILL_ROOT` via `--skill-root` or `env` in the Inspector launch config if needed.
+Use the Inspector UI to call lifecycle tools (**`begin_task`**, **`get_session`**, **`end_task`**) or low-level tools (**`list`**, **`select`**, **`load`**, **`cleanup`**). Set `SKILL_ROOT` via `--skill-root` or `env` in the Inspector launch config if needed.
 
 ## Cursor (verified)
 
-See **`docs/VALIDATION_REPORT.md`** — Cursor MCP verified **2026-05-14** (`load` / `cleanup`) and **2026-05-17** (Sprint E lifecycle + extension session register). VS Code wiring is deferred; stdio MCP behavior is host-agnostic once paths are correct.
+Stdio MCP behavior is host-agnostic once paths are correct. Use `npm run smoke` for a CLI lifecycle check.

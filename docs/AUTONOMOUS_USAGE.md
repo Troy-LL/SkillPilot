@@ -32,7 +32,6 @@ Path: **`.skilling/session.json`** at the repo root (gitignored). Written by **`
 | **`end_task`** | `cleanup` + clear session |
 | **`get_session`** | Read active episode or `{ active: false }` (inactive when TTL expired — clears stale session files, same as auto-begin hook). `include_body` shapes skill text read-only (no new correlation_id). |
 | `list` / `skill_list`, `select`, `load`, `health` | Debugging and catalog checks |
-| `ingest` | Optional copy `.agents/skills` → `skills/` |
 
 **SKILL_ROOT:** **`.agents/skills/`** for this repo. **Typical flow:** `skill_plan` (optional) → `begin_task` → work → `end_task`.
 
@@ -143,7 +142,7 @@ Cursor **`beforeSubmitPrompt`** cannot inject `additional_context` yet. Agents f
 5. `end_task` or close composer → session + bridge cleared
 6. Extension: status bar appears without manual Register (when `skilling.autoRegisterSession` is true)
 
-Record results in [VALIDATION_REPORT.md](VALIDATION_REPORT.md).
+Run `npm test` and `npm run smoke` to verify locally.
 
 ## Related
 

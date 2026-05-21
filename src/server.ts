@@ -5,7 +5,6 @@ import * as z from 'zod/v4';
 import type { SkillingConfig } from './config.js';
 import { MAX_SELECT_INPUT_CHARS } from './constants.js';
 import { SkillingError, errorPayload, type SkillingErrorCode } from './errors.js';
-import { importSkillFromAgents, resolveRepoRoot } from './import-skill.js';
 import { logPromptSnippet, logToolError, logToolOk } from './observability.js';
 import { PACKAGE_VERSION } from './package-version.js';
 import { getSelector } from './selector/index.js';
@@ -462,40 +461,6 @@ export function createSkillingServer(skillRoot: string, config: SkillingConfig):
         return toolOk(endTask(repoRoot, correlation_id) as unknown as Record<string, unknown>);
       } catch (e) {
         return handleError('end_task', e);
-      }
-    },
-  );
-
-  mcp.registerTool(
-    'ingest',
-    {
-      description:
-        'Import from .agents/skills/<folder> into SKILL_ROOT (optional; canonical store is .agents/skills).',
-      inputSchema: {
-        agents_folder: z.string(),
-        skill_id: z.string().optional(),
-        repo_root: z.string().optional(),
-      },
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-    },
-    async ({ agents_folder, skill_id, repo_root }) => {
-      try {
-        const repo = resolveRepoRoot(rootDisplay, repo_root);
-        const result = importSkillFromAgents(repo, agents_folder, rootDisplay, {
-          id: skill_id,
-        });
-        return toolOk({
-          skill_id: result.skill_id,
-          dest_path: result.dest_path,
-          warnings: result.warnings,
-        });
-      } catch (e) {
-        return handleError('ingest', e);
       }
     },
   );

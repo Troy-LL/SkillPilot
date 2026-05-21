@@ -22,7 +22,7 @@ Apply when the host has Skilling MCP and you need a repeatable **plan → select
 
 **Not for:** user asks to discover or install skills from the ecosystem — use **`find-skills`** instead.
 
-Skills live under **`.agents/skills/`** (`SKILL_ROOT`). Do not read template copies under `skills/`.
+Skills live under **`.agents/skills/`** (`SKILL_ROOT`).
 
 ## Phase hints for begin_task
 
@@ -49,7 +49,7 @@ Skills live under **`.agents/skills/`** (`SKILL_ROOT`). Do not read template cop
 
 ## Do not
 
-- Read `skills/` paths directly when MCP tools are available (except **`.skilling/active-body.md`** bridge).
+- Read `.agents/skills/` paths directly when MCP tools are available (except **`.skilling/active-body.md`** bridge).
 - Call **`list`** / **`select`** / **`load`** in normal work (debugging only).
 - Skip **`end_task`** when moving to unrelated work.
 - Use this skill when the user only wants to **find or install** external skills — use **`find-skills`**.

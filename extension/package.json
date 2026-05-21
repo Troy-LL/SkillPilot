@@ -70,7 +70,7 @@
         "skilling.skillRoot": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Absolute path to the `skills/` folder. Optional; repo root = parent of `skills/`. Used when resolving `.skilling/session.json`."
+          "markdownDescription": "Absolute path to `.agents/skills/`. Optional; repo root = parent of `.agents/`. Used when resolving `.skilling/session.json`."
         },
         "skilling.autoCleanupOnTtl": {
           "type": "boolean",

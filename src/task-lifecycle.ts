@@ -5,7 +5,7 @@ import { DEFAULT_TTL_MS, LOW_CONFIDENCE_THRESHOLD, MAX_SELECT_INPUT_CHARS } from
 import { SkillingError } from './errors.js';
 import { logToolOk } from './observability.js';
 import type { SkillFrontMatter } from './parse.js';
-import { resolveRepoRoot } from './import-skill.js';
+import { resolveRepoRoot } from './repo-root.js';
 import { getSelector } from './selector/index.js';
 import type { SelectResult } from './selector/types.js';
 import { resolveInjectMode, shapeSkillBody, type InjectMode, type ShapeBodyResult } from './shape-body.js';

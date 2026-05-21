@@ -1,5 +1,5 @@
 Skilling includes skill content from third-party open-source repositories.
-See skills-lock.json in the source repository for provenance and hashes.
+See LICENSE.txt in each skill folder under `.agents/skills/` for per-skill terms.
 
 Bundled skills (subject to their respective licenses in each skill folder):
 

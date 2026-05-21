@@ -38,7 +38,7 @@ Override anytime with explicit `inject_mode` on `begin_task` / `load`.
 
 Upstream skills under **`.agents/skills/<id>/SKILL.md`** are often updated by `npx skills add` / `npx skills update`. **Do not** patch their bodies for Skilling-specific fields.
 
-Instead, add **`.agents/skills-meta/<id>.yaml`** (sibling of `skills/`):
+Instead, add **`.agents/skills-meta/<id>.yaml`** next to the skill catalog:
 
 ```yaml
 tags: [mcp, server]

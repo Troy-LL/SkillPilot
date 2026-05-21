@@ -11,6 +11,7 @@ npm run smoke
 
 ## Skill catalog changes
 
+- Skill ids must match `^[a-z0-9]+(-[a-z0-9]+)*$` (3–64 chars); folder name must match YAML `id`.
 - Install ecosystem skills with `npx skills add <pkg> -y` (project-local, not `-g`).
 - Add routing metadata in `.agents/skills-meta/<skill-id>.yaml` — do not edit upstream `SKILL.md` bodies when avoidable.
 - Run `npm run benchmark` — Section 2b must pass (selection regression).

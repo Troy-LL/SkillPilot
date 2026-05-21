@@ -15,7 +15,6 @@
     "test:session-end-hook": "node scripts/test-session-end-hook.mjs",
     "test:auto-begin-hook": "node scripts/test-auto-begin-hook.mjs",
     "skills:add": "node scripts/skills-add-local.mjs",
-    "skills:import": "node scripts/import-skill.mjs",
     "benchmark": "npm run build && node scripts/token-benchmark.mjs",
     "pack:check": "npm pack --dry-run",
     "deeplink": "node scripts/generate-mcp-deeplink.mjs"

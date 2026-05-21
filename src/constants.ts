@@ -1,4 +1,4 @@
-/** skill-rules.md §2 + §8 */
+/** Skill id: lowercase slug, 3–64 chars, segments separated by single hyphens. */
 export const SKILL_ID_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 export const SKILL_ID_MIN = 3;
 export const SKILL_ID_MAX = 64;

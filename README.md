@@ -178,7 +178,6 @@ Low-level tools (debugging and custom flows):
 | `load` | `skill_inject` |
 | `cleanup` | `skill_cleanup` |
 | `health` | — |
-| `ingest` | Optional copy into legacy `skills/` tree |
 
 `load` and `begin_task` support **`inject_mode`** (`summary` | `compact` | `sections` | `full`) and **`token_budget`** to auto-pick depth. See [`docs/CONTEXT_ENGINEERING.md`](docs/CONTEXT_ENGINEERING.md).
 
@@ -226,12 +225,9 @@ SkillPilot/
 ├── hooks/                   ← plugin hooks (auto-begin, session-end)
 ├── mcp.json                 ← portable MCP config for plugin installs
 ├── src/                     ← MCP server (TypeScript)
-├── skilling_docs/         ← architecture, spec, token strategy, roadmap
 ├── docs/                    ← host setup, catalog, context engineering
 └── .skilling/             ← active session (gitignored): session.json, bridge files
 ```
-
-The legacy `skills/` directory is optional — used only if you dogfood the `ingest` tool.
 
 ---
 
@@ -239,13 +235,12 @@ The legacy `skills/` directory is optional — used only if you dogfood the `ing
 
 | Doc | Topic |
 |-----|--------|
-| [Architecture](skilling_docs/ARCHITECTURE.md) | Tiers, lifecycle, design constraints |
-| [Specification](skilling_docs/SPEC.md) | Tool contracts and error codes |
 | [Context engineering](docs/CONTEXT_ENGINEERING.md) | Inject ladder and overlay workflow |
 | [Host setup](docs/HOST_MCP_SETUP.md) | Cursor and VS Code MCP wiring |
 | [Skills catalog](docs/SKILLS_CATALOG.md) | Install, overlay, and route skills |
 | [Autonomous usage](docs/AUTONOMOUS_USAGE.md) | Hooks, session file, agent policy |
-| [Publishing](docs/PUBLISHING.md) | Cursor Marketplace plugin checklist |
+| [Extension](docs/EXTENSION.md) | TTL status-bar companion |
+| [Publishing](docs/PUBLISHING.md) | npm and Cursor Marketplace checklist |
 
 ---
 

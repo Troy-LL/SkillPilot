@@ -1,8 +1,11 @@
 node_modules/
 dist/
 .skilling/
+.skillpilot/
 extension/node_modules/
 extension/out/
 *.log
 *.tgz
 .DS_Store
+skills-lock.json
+npm

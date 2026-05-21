@@ -1,7 +1,7 @@
 /**
- * Install a skill into THIS repo’s .agents/skills (not global -g) and import into skills/.
+ * Install a skill into THIS repo’s .agents/skills (project-local, not global -g).
  *
- * Usage (from Skilling repo root, after npm run build):
+ * Usage (from Skilling repo root):
  *   node scripts/skills-add-local.mjs vercel-labs/skills@find-skills
  *   node scripts/skills-add-local.mjs vercel-labs/skills@find-skills find-skills
  *
@@ -10,11 +10,9 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { importSkillFromAgents } from '../dist/import-skill.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
-const skillRoot = path.join(repoRoot, 'skills');
 
 const pkg = process.argv[2];
 if (!pkg) {
@@ -47,9 +45,4 @@ if (install.status !== 0) {
   process.exit(install.status ?? 1);
 }
 
-process.stderr.write(`Importing .agents/skills/${agentsFolder} → ${skillRoot}…\n`);
-const result = importSkillFromAgents(repoRoot, agentsFolder, skillRoot, {
-  source: `npx:skills add ${pkg}`,
-});
-process.stdout.write(JSON.stringify(result, null, 2) + '\n');
-process.stderr.write(`Done. skill_id=${result.skill_id}\n`);
+process.stderr.write(`Done. Skill installed at .agents/skills/${agentsFolder}/\n`);

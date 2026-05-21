@@ -39,7 +39,7 @@ export function isSessionFileActive(session: SessionFilePayload): boolean {
   return started + ttl > Date.now();
 }
 
-/** Align with MCP: repo root = parent of skills/, or dirname(serverEntry). */
+/** Align with MCP: repo root = parent of `.agents/skills`, or dirname(serverEntry). */
 export function resolveRepoRootForExtension(): string | undefined {
   const config = vscode.workspace.getConfiguration('skilling');
   const serverEntry = config.get<string>('serverEntry', '').trim();
@@ -54,15 +54,24 @@ export function resolveRepoRootForExtension(): string | undefined {
   const skillRoot = config.get<string>('skillRoot', '').trim();
   if (skillRoot) {
     const root = path.resolve(skillRoot);
-    return path.basename(root) === 'skills' ? path.dirname(root) : root;
+    if (path.basename(root) === 'skills') {
+      const parent = path.dirname(root);
+      if (path.basename(parent) === '.agents') return path.dirname(parent);
+      return parent;
+    }
+    return root;
   }
 
   const folders = vscode.workspace.workspaceFolders ?? [];
   for (const folder of folders) {
     const ws = folder.uri.fsPath;
     if (fs.existsSync(sessionFilePath(ws))) return ws;
-    if (path.basename(ws) === 'skills' && fs.existsSync(sessionFilePath(path.dirname(ws)))) {
-      return path.dirname(ws);
+    if (path.basename(ws) === 'skills') {
+      const parent = path.dirname(ws);
+      if (path.basename(parent) === '.agents' && fs.existsSync(sessionFilePath(path.dirname(parent)))) {
+        return path.dirname(parent);
+      }
+      if (fs.existsSync(sessionFilePath(parent))) return parent;
     }
     const parent = path.dirname(ws);
     if (fs.existsSync(sessionFilePath(parent))) return parent;

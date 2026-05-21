@@ -1,6 +1,6 @@
 # Skill catalog — discover, install locally, route with Skilling
 
-Skilling **lists / selects / loads** skills under **`SKILL_ROOT`**. For this repo, the **canonical** root is **`.agents/skills/`** — not the template tree under **`skills/`**.
+Skilling **lists / selects / loads** skills under **`SKILL_ROOT`**. For this repo, the **canonical** root is **`.agents/skills/`**.
 
 ## Pipeline (recommended)
 
@@ -16,7 +16,6 @@ find-skills  →  npx skills add (repo root, no -g)  →  .agents/skills/<id>/
 | 2. Install **locally** | `npm run skills:add -- <pkg>` or `npx skills add <pkg> -y` **from repo root** (no `-g`) | `<repo>/.agents/skills/<id>/` |
 | 3. Overlay (Skilling) | Add or edit **`.agents/skills-meta/<id>.yaml`** | Tags, triggers, `inject_mode_default` — survives skill updates |
 | 4. Route | MCP with `SKILL_ROOT` pointing at `.agents/skills` | Reads skills + merges overlays |
-| 5. Optional ingest | `npm run skills:import -- <id>` or MCP **`ingest`** | Copies to `<repo>/skills/` (legacy / smoke only) |
 
 ## Commands (Skilling repo root)
 
@@ -29,18 +28,12 @@ npx skills add anthropics/skills@mcp-builder -y
 npm run smoke
 ```
 
-Optional import into `skills/` (not required for daily MCP use):
-
-```powershell
-npm run skills:import -- mcp-builder
-```
-
 ## MCP configuration
 
 Point **`env.SKILL_ROOT`** at **this repo’s `.agents/skills`** folder:
 
 ```json
-"env": { "SKILL_ROOT": "<REPO>/Skilling/.agents/skills" }
+"env": { "SKILL_ROOT": "<REPO>/.agents/skills" }
 ```
 
 See **`docs/mcp-config.example.json`**.
@@ -83,8 +76,8 @@ MCP-tagged skills require **mcp** or an exact MCP trigger in the query; otherwis
 ## Notes
 
 - **`.agents/skills-meta/`** holds Skilling routing metadata for ecosystem skills; commit these files in the repo.
-- **`com-skilling-orchestrator`** is first-party (local entry in `skills-lock.json`); not managed by `npx skills update`.
-- Ecosystem front matter (`name` / `description`) is normalized to **`id`**, **`title`**, **`summary`**; quoted phrases in `description` may become **`triggers`** when omitted.
+- **`com-skilling-orchestrator`** is first-party; not managed by `npx skills update`.
+- Ecosystem front matter (`name` / `description`) is normalized to **`id`**, **`title`**, **`summary`** when skills are installed via `npx skills add`.
 - **`token_estimate`** is computed from the skill **body** when not set explicitly.
 - Folder name **must** match YAML **`id`**.
 - Do not use **`npx skills add -g`** when curating this project unless you also copy into `.agents/skills` here.

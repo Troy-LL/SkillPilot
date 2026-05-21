@@ -9,7 +9,7 @@ Use **`docs/mcp-config.example.json`** as the shape of the `mcpServers` entry. R
 3. Set:
    - `command`: `node` (or full path to `node.exe` on Windows if GUI apps lack PATH).
    - `args`: `[ "<REPO>/Skilling/dist/index.js" ]` or add `"--skill-root", "<REPO>/Skilling/.agents/skills"`.
-   - `env.SKILL_ROOT`: `"<REPO>/Skilling/.agents/skills"` (**canonical**; do not point at `skills/` unless you only use ingest).
+   - `env.SKILL_ROOT`: `"<REPO>/.agents/skills"` (**canonical**).
 
 Restart MCP / reload window after edits.
 
