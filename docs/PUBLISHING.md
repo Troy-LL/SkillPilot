@@ -23,7 +23,8 @@ npm publish --access public
 
 First-time publishers need an npm account and a public GitHub repo ([Troy-LL/SkillPilot](https://github.com/Troy-LL/SkillPilot)).
 
-After publish, users install with the README deeplink or:
+After publish, users install from **[cursor.directory/plugins/skilling](https://cursor.directory/plugins/skilling)** (README **Add to Cursor** button) or the MCP-only deeplink:
+
 
 ```json
 {

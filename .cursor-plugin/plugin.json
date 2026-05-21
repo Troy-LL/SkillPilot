@@ -6,6 +6,8 @@
     "name": "Skilling Contributors"
   },
   "license": "ISC",
+  "homepage": "https://cursor.directory/plugins/skilling",
+  "repository": "https://github.com/Troy-LL/SkillPilot",
   "keywords": [
     "mcp",
     "skills",

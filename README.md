@@ -40,9 +40,15 @@ npm install skilling
 
 Point `SKILL_ROOT` at your project’s `.agents/skills` folder. Omit it to use the **bundled** catalog shipped inside the package. Create `.agents/skills` and add skills with `npx skills add`, or use the bundled catalog as-is.
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=skilling&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsInNraWxsaW5nQGxhdGVzdCJdLCJlbnYiOnsiU0tJTExfUk9PVCI6IiR7d29ya3NwYWNlRm9sZGVyfS8uYWdlbnRzL3NraWxscyJ9fQ==)
+**Add to Cursor** (recommended) — full plugin on [Cursor Directory](https://cursor.directory/plugins/skilling): MCP server, bundled skills, hooks, and lifecycle rules in one install.
 
-Regenerate the deeplink after config changes: `node scripts/generate-mcp-deeplink.mjs`
+[![Add to Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.directory/plugins/skilling)
+
+**MCP only** — add just the stdio server via deeplink (no plugin bundle):
+
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-light.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=skilling&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsInNraWxsaW5nQGxhdGVzdCJdLCJlbnYiOnsiU0tJTExfUk9PVCI6IiR7d29ya3NwYWNlRm9sZGVyfS8uYWdlbnRzL3NraWxscyJ9fQ==)
+
+Regenerate the MCP deeplink after config changes: `npm run deeplink`
 
 **Requirements:** Node.js 18+
 
@@ -129,9 +135,9 @@ Local MCP entry (repo-relative):
 
 Maintainers: `npm login` then `npm publish --access public` from this directory. See [`docs/PUBLISHING.md`](docs/PUBLISHING.md).
 
-### Cursor Marketplace plugin
+### Cursor plugin (Directory + Marketplace)
 
-This repo includes [`.cursor-plugin/plugin.json`](.cursor-plugin/plugin.json) for the [Cursor Marketplace](https://cursor.com/marketplace). Local test and submission: [`docs/PUBLISHING.md`](docs/PUBLISHING.md).
+Install from **[cursor.directory/plugins/skilling](https://cursor.directory/plugins/skilling)** (community directory) or submit via the [Cursor Marketplace](https://cursor.com/marketplace). Manifest: [`.cursor-plugin/plugin.json`](.cursor-plugin/plugin.json). Local test and publishing: [`docs/PUBLISHING.md`](docs/PUBLISHING.md).
 
 **Verify locally:**
 
