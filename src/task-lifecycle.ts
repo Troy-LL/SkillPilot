@@ -4,10 +4,11 @@ import { CorrelationRegistry } from './correlation-registry.js';
 import { DEFAULT_TTL_MS, MAX_SELECT_INPUT_CHARS } from './constants.js';
 import { SkillPilotError } from './errors.js';
 import { logToolOk } from './observability.js';
+import type { SkillFrontMatter } from './parse.js';
 import { resolveRepoRoot } from './import-skill.js';
 import { getSelector } from './selector/index.js';
 import type { SelectResult } from './selector/types.js';
-import { resolveInjectMode, shapeSkillBody, type InjectMode } from './shape-body.js';
+import { resolveInjectMode, shapeSkillBody, type InjectMode, type ShapeBodyResult } from './shape-body.js';
 import {
   clearSession,
   isSessionActive,
@@ -105,13 +106,12 @@ function ttlMsFromMeta(meta: { ttl_seconds?: number }, config: SkillPilotConfig)
   return config.ttlSeconds > 0 ? config.ttlSeconds * 1000 : DEFAULT_TTL_MS;
 }
 
-export function loadSkillEpisode(
+function loadAndShapeSkill(
   skillRoot: string,
   skillId: string,
   config: SkillPilotConfig,
-  correlationId?: string,
   options?: { inject_mode?: InjectMode; token_budget?: number },
-): LoadEpisodeResult {
+): { meta: SkillFrontMatter; shaped: ShapeBodyResult } {
   const err = validateSkillIdForLoad(skillId);
   if (err) throw new SkillPilotError('VALIDATION_ERROR', err);
 
@@ -131,6 +131,32 @@ export function loadSkillEpisode(
     },
     injectSections: meta.inject_sections,
   });
+  return { meta, shaped };
+}
+
+/** Shape skill body for display/read paths (get_session include_body). No registry or inject log. */
+function readShapedSkillBody(
+  skillRoot: string,
+  skillId: string,
+  config: SkillPilotConfig,
+  options?: { inject_mode?: InjectMode; token_budget?: number },
+): string {
+  return loadAndShapeSkill(skillRoot, skillId, config, options).shaped.body;
+}
+
+/** Process-local correlation count (tests / diagnostics). */
+export function getCorrelationRegistrySize(): number {
+  return correlationRegistry.size;
+}
+
+export function loadSkillEpisode(
+  skillRoot: string,
+  skillId: string,
+  config: SkillPilotConfig,
+  correlationId?: string,
+  options?: { inject_mode?: InjectMode; token_budget?: number },
+): LoadEpisodeResult {
+  const { meta, shaped } = loadAndShapeSkill(skillRoot, skillId, config, options);
   const correlation_id = correlationId ?? randomUUID();
   correlationRegistry.add(correlation_id);
   const ttl_ms = ttlMsFromMeta(meta, config);
@@ -339,8 +365,10 @@ export function getSession(
   };
 
   if (includeBody) {
-    const episode = loadSkillEpisode(skillRoot, session.skill_id, config);
-    return { ...base, body: episode.body };
+    return {
+      ...base,
+      body: readShapedSkillBody(skillRoot, session.skill_id, config),
+    };
   }
 
   return base;

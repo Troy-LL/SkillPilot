@@ -382,7 +382,8 @@ export function createSkillPilotServer(skillRoot: string, config: SkillPilotConf
   mcp.registerTool(
     'get_session',
     {
-      description: 'Read active task session from .skillpilot/session.json.',
+      description:
+        'Read active task session from .skillpilot/session.json. Expired TTL returns { active: false } and clears session + active-body.md. include_body shapes skill text read-only (no new correlation_id).',
       inputSchema: {
         include_summary: z.boolean().optional(),
         include_body: z.boolean().optional(),

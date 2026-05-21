@@ -30,7 +30,7 @@ Reload the window. Set `skillpilot.serverEntry` in Settings.
 | Setting | Purpose |
 |---------|---------|
 | **`skillpilot.serverEntry`** | Absolute path to `...\SkillPilot\dist\index.js` (required for cleanup). |
-| **`skillpilot.skillRoot`** | Absolute path to `...\SkillPilot\skills` (optional). |
+| **`skillpilot.skillRoot`** | Absolute path to `...\SkillPilot\.agents\skills` (optional). |
 | **`skillpilot.autoCleanupOnTtl`** | Call MCP `cleanup` when TTL fires (default `true`). |
 | **`skillpilot.promptBeforeCleanup`** | Confirm before TTL cleanup (default `false`). |
 | **`skillpilot.ttlMsOverride`** | If `> 0`, ignore load `ttl_ms` and use this value (ms). |
@@ -59,13 +59,13 @@ Reload the window. Set `skillpilot.serverEntry` in Settings.
 
 If chat **`begin_task`** worked but the command says **no `.skillpilot/session.json`**:
 
-1. Set **`skillpilot.serverEntry`** to your `dist/index.js` (repo root = that file’s parent), or **`skillpilot.skillRoot`** to your `skills` folder (repo root = parent of `skills/`).
+1. Set **`skillpilot.serverEntry`** to your `dist/index.js` (repo root = that file’s parent), or **`skillpilot.skillRoot`** to your **`.agents/skills`** folder (repo root = parent of `.agents/`).
 2. Re-run the command. You do **not** need the workspace root folder open if those settings point at the SkillPilot repo (common when the Extension Dev Host opened only `extension/`).
 3. Confirm the file exists: `<repo>/.skillpilot/session.json` after **`begin_task`**, before **`end_task`**.
 
 ## Cursor hooks (Sprint E2)
 
-When a **composer conversation ends**, the project **`sessionEnd`** hook (`.cursor/hooks.json`) runs the same **`extension-cleanup.mjs`** logic and removes **`.skillpilot/session.json`**. You do not need the extension for that path — but the extension still helps for **TTL countdown** and **dismiss mid-chat**.
+When a **composer conversation ends**, the project **`sessionEnd`** hook ([`.cursor/hooks.json`](../.cursor/hooks.json) → [`hooks/skillpilot-session-end.mjs`](../hooks/skillpilot-session-end.mjs)) runs the same **`extension-cleanup.mjs`** logic and removes **`.skillpilot/session.json`** and **`active-body.md`**. You do not need the extension for that path — but the extension still helps for **TTL countdown** and **dismiss mid-chat**.
 
 Reload Cursor after changing hooks. See **`docs/AUTONOMOUS_USAGE.md`** § E2.
 

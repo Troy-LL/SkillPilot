@@ -12,7 +12,7 @@ import {
   resolveSessionPath,
   writeSession,
 } from './session-store.js';
-import { beginTask, endTask, getSession, loadSkillEpisode } from './task-lifecycle.js';
+import { beginTask, endTask, getCorrelationRegistrySize, getSession, loadSkillEpisode } from './task-lifecycle.js';
 
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const agentsSkills = path.join(repoRoot, '.agents', 'skills');
@@ -88,6 +88,32 @@ describe('task-lifecycle', () => {
         assert.ok(session.summary);
       }
       endTask(repo);
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it('getSession include_body does not grow correlation registry', () => {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-task-registry-'));
+    try {
+      beginTask(agentsSkills, repo, config, {
+        prompt: 'find a skill for deployment',
+        skill_id: 'find-skills',
+      });
+      const sizeAfterBegin = getCorrelationRegistrySize();
+      assert.ok(sizeAfterBegin >= 1);
+
+      for (let i = 0; i < 10; i++) {
+        const session = getSession(agentsSkills, repo, config, { include_body: true });
+        assert.equal(session.active, true);
+        if (session.active) {
+          assert.ok(session.body && session.body.length > 0);
+        }
+      }
+      assert.equal(getCorrelationRegistrySize(), sizeAfterBegin);
+
+      endTask(repo);
+      assert.equal(getCorrelationRegistrySize(), sizeAfterBegin - 1);
     } finally {
       fs.rmSync(repo, { recursive: true, force: true });
     }

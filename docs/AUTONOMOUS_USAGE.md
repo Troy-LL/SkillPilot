@@ -30,7 +30,7 @@ Path: **`.skillpilot/session.json`** at the repo root (gitignored). Written by *
 | **`skill_plan`** | Tier-1-only plan + `skills_needed` before multi-phase work |
 | **`begin_task`** | `select` (unless `skill_id`) + shaped `load` + write session + **`.skillpilot/active-body.md`** bridge; `token_budget`, `phase` |
 | **`end_task`** | `cleanup` + clear session |
-| **`get_session`** | Read active episode or `{ active: false }` (inactive when TTL expired — clears stale session files, same as auto-begin hook) |
+| **`get_session`** | Read active episode or `{ active: false }` (inactive when TTL expired — clears stale session files, same as auto-begin hook). `include_body` shapes skill text read-only (no new correlation_id). |
 | `list` / `skill_list`, `select`, `load`, `health` | Debugging and catalog checks |
 | `ingest` | Optional copy `.agents/skills` → `skills/` |
 

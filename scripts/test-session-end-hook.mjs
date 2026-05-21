@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const hookScript = path.join(repoRoot, 'hooks', 'skillpilot-session-end.mjs');
 const sessionFile = path.join(repoRoot, '.skillpilot', 'session.json');
+const bodyFile = path.join(repoRoot, '.skillpilot', 'active-body.md');
 
 const fakeSession = {
   version: 1,
@@ -48,6 +49,9 @@ process.stderr.write(result.stderr ?? '');
 if (createdFake && fs.existsSync(sessionFile)) {
   fs.unlinkSync(sessionFile);
   process.stderr.write('Removed leftover session file after failed cleanup (expected if MCP not running).\n');
+}
+if (fs.existsSync(bodyFile)) {
+  fs.unlinkSync(bodyFile);
 }
 
 process.exit(result.status ?? 1);

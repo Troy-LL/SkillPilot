@@ -2,18 +2,18 @@
 
 This document records the **ordered validation** steps for SkillPilot. Numbers match the onboarding checklist.
 
-## Current state (2026-05-17)
+## Current state (2026-05-21)
 
 | Item | Value |
 |------|--------|
-| **MCP server metadata version** | `1.2.0` (`src/server.ts`) |
+| **MCP server metadata version** | `1.4.0` (from `package.json` via `src/package-version.ts`) |
 | **Transport** | stdio (`dist/index.js`; logs on **stderr** only) |
-| **MCP tools (8)** | `list`, `select`, `load`, `cleanup`, `ingest`, `begin_task`, `end_task`, `get_session` |
-| **Catalog (`skills/`)** | `find-skills`, `com-skillpilot-orchestrator` (demo seeds removed) |
-| **Automated smoke** | `list` → `begin_task` → `get_session` → `end_task` ×2 (`scripts/mcp-smoke.mjs`) |
-| **Session SOT** | `.skillpilot/session.json` at repo root (parent of `skills/`; gitignored) |
-| **E2 hooks** | `sessionEnd` → `.cursor/hooks/skillpilot-session-end.mjs` (cleanup + clear session) |
-| **CI** | `npm ci` → `npm test` → `npm run smoke` (`.github/workflows/ci.yml`) |
+| **MCP tools** | `list`, `skill_list`, `select`, `skill_plan`, `load`, `cleanup`, `ingest`, `begin_task`, `end_task`, `get_session`, `health` |
+| **Catalog (`SKILL_ROOT`)** | **`.agents/skills/`** — 8 skills in this repo |
+| **Automated smoke** | `list` → `skill_plan` → `begin_task` → session file → `get_session` → `health` → `end_task` ×2 (`scripts/mcp-smoke.mjs`) |
+| **Session SOT** | `.skillpilot/session.json` + optional `active-body.md` bridge at repo root (gitignored) |
+| **Hooks** | [`.cursor/hooks.json`](../.cursor/hooks.json) → [`hooks/skillpilot-auto-begin.mjs`](../hooks/skillpilot-auto-begin.mjs), [`hooks/skillpilot-session-end.mjs`](../hooks/skillpilot-session-end.mjs) |
+| **CI** | `npm ci` → `npm test` (unit + hook scripts) → `npm run smoke` (`.github/workflows/ci.yml`) |
 
 Aligned with project MCP guidance (`.agents/skills/mcp-builder`, `typescript-mcp-server-generator`): `McpServer` + `registerTool`, Zod input schemas, `content` + `structuredContent` on tool results, tool annotations (`readOnlyHint`, `idempotentHint`, etc.).
 
@@ -22,8 +22,8 @@ Aligned with project MCP guidance (`.agents/skills/mcp-builder`, `typescript-mcp
 ## Environment
 
 - **Repo:** SkillPilot (skill router MCP).
-- **Default skill root:** `./skills` relative to process cwd, or `SKILL_ROOT` / `--skill-root`.
-- **Repo root for session file:** parent directory of `skills/` (same rule as MCP `begin_task` / extension `skillpilot.skillRoot`).
+- **Default skill root:** **`.agents/skills/`** (or `SKILL_ROOT` / `--skill-root`).
+- **Repo root for session file:** parent of `.agents/skills/` (same rule as MCP `begin_task` / extension `skillpilot.skillRoot`).
 
 ---
 
@@ -174,13 +174,22 @@ This confirmed **Cursor can drive the SkillPilot stdio MCP server** and the **`l
 
 ### Sprint F — manual verification (Cursor)
 
-- [ ] `npm run test:auto-begin-hook` passes after `npm run build`
+- [x] `npm run test:auto-begin-hook` passes after `npm run build`
 - [ ] Reload hooks; send coding prompt → `session.json` + `active-body.md` without agent `begin_task`
 - [ ] Second prompt → hook skips (Hooks stderr: `skip begin_task`)
 - [ ] Extension status bar auto-appears (`skillpilot.autoRegisterSession`)
 - [ ] Agent reply is one line (no skill menu); uses `summary` from session
 - [ ] `find a skill for X` routes to `find-skills`; normal fix-CI prompt does not show `list`
 - [ ] Opt-out: `.skillpilot/disable-auto-begin` or `SKILLPILOT_SKIP_AUTO_BEGIN=1` disables hook
+
+### Review remediation (2026-05-21)
+
+Code review fixes landed in commit `a77f92f`:
+
+- TTL-aware `get_session`; `begin_task` writes `active-body.md`; strict `end_task` correlation_id
+- Ingest path validation; skill index cache invalidation + mtime signal
+- `skill_plan` empty-goal guard; `end_previous` skips cleanup for expired sessions
+- 55 unit tests + hook integration tests in `npm test`
 
 ---
 
