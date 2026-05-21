@@ -40,13 +40,13 @@ npm install skilling
 
 Point `SKILL_ROOT` at your project’s `.agents/skills` folder. Omit it to use the **bundled** catalog shipped inside the package. Create `.agents/skills` and add skills with `npx skills add`, or use the bundled catalog as-is.
 
-**Add to Cursor** (recommended) — full plugin on [Cursor Directory](https://cursor.directory/plugins/skilling): MCP server, bundled skills, hooks, and lifecycle rules in one install.
+### Install in Cursor
 
-[![Add to Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.directory/plugins/skilling)
+**Recommended — full plugin** (MCP + skills + hooks + rules): open **[Skilling on Cursor Directory](https://cursor.directory/plugins/skilling)** and click **Add to Cursor** on that page.
 
-**MCP only** — add just the stdio server via deeplink (no plugin bundle):
+**MCP server only** (stdio router via `npx`, no plugin bundle) — one-click deeplink:
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-light.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=skilling&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsInNraWxsaW5nQGxhdGVzdCJdLCJlbnYiOnsiU0tJTExfUk9PVCI6IiR7d29ya3NwYWNlRm9sZGVyfS8uYWdlbnRzL3NraWxscyJ9fQ==)
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=skilling&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsInNraWxsaW5nQGxhdGVzdCJdLCJlbnYiOnsiU0tJTExfUk9PVCI6IiR7d29ya3NwYWNlRm9sZGVyfS8uYWdlbnRzL3NraWxscyJ9fQ==)
 
 Regenerate the MCP deeplink after config changes: `npm run deeplink`
 

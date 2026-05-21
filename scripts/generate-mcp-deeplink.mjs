@@ -16,13 +16,9 @@ const url = `cursor://anysphere.cursor-deeplink/mcp/install?name=skilling&config
 
 const directoryUrl = 'https://cursor.directory/plugins/skilling';
 
-console.log('Cursor Directory (full plugin — README primary button):\n');
+console.log('Cursor Directory (full plugin — link in README, not MCP badge):\n');
 console.log(directoryUrl);
-console.log('\nMarkdown:\n');
-console.log(
-  `[![Add to Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](${directoryUrl})`,
-);
-console.log('\nCursor MCP install deeplink (MCP only):\n');
+console.log('\nCursor MCP install deeplink (README badge — MCP only):\n');
 console.log(url);
 console.log('\nConfig JSON:\n');
 console.log(JSON.stringify({ mcpServers: { skilling: config } }, null, 2));
