@@ -6,6 +6,48 @@ SkillPilot is an open-source MCP server that routes agent skills from your files
 
 ---
 
+## Install
+
+**npm:** [`skillpilot-mcp`](https://www.npmjs.com/package/skillpilot-mcp)
+
+Add this to **Cursor Settings → MCP** or your project’s `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "skillpilot": {
+      "command": "npx",
+      "args": ["-y", "skillpilot-mcp@latest"],
+      "env": {
+        "SKILL_ROOT": "${workspaceFolder}/.agents/skills"
+      }
+    }
+  }
+}
+```
+
+One-line MCP command (what `npx` runs):
+
+```bash
+npx -y skillpilot-mcp@latest
+```
+
+Install the package into a project (optional — MCP config above uses `npx` and needs no local install):
+
+```bash
+npm install skillpilot-mcp
+```
+
+Point `SKILL_ROOT` at your project’s `.agents/skills` folder. Omit it to use the **bundled** catalog shipped inside the package. Create `.agents/skills` and add skills with `npx skills add`, or use the bundled catalog as-is.
+
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=skillpilot&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsInNraWxscGlsb3QtbWNwQGxhdGVzdCJdLCJlbnYiOnsiU0tJTExfUk9PVCI6IiR7d29ya3NwYWNlRm9sZGVyfS8uYWdlbnRzL3NraWxscyJ9fQ==)
+
+Regenerate the deeplink after config changes: `node scripts/generate-mcp-deeplink.mjs`
+
+**Requirements:** Node.js 18+
+
+---
+
 ## Why SkillPilot?
 
 Agents work better with skills — structured playbooks for code review, MCP development, UI design, and more. But dumping entire skill libraries into every turn is expensive: wrong skills add noise, large bodies burn tokens, and stale guidance lingers after a task ends.
@@ -57,32 +99,6 @@ Skills live as folders under **`.agents/skills/<skill-id>/SKILL.md`**. SkillPilo
 ---
 
 ## Quick start
-
-**Requirements:** Node.js 18+
-
-### Install in Cursor (one step)
-
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=skillpilot&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsInNraWxscGlsb3QtbWNwQGxhdGVzdCJdLCJlbnYiOnsiU0tJTExfUk9PVCI6IiR7d29ya3NwYWNlRm9sZGVyfS8uYWdlbnRzL3NraWxscyJ9fQ==)
-
-Or paste this into **Cursor Settings → MCP** (or `.cursor/mcp.json`):
-
-```json
-{
-  "mcpServers": {
-    "skillpilot": {
-      "command": "npx",
-      "args": ["-y", "skillpilot-mcp@latest"],
-      "env": {
-        "SKILL_ROOT": "${workspaceFolder}/.agents/skills"
-      }
-    }
-  }
-}
-```
-
-No clone or build. Point `SKILL_ROOT` at your project’s `.agents/skills` (create the folder and add skills, or use `npx skills add`). Omit `SKILL_ROOT` to use the **bundled** catalog shipped inside the package.
-
-Regenerate the deeplink after config changes: `node scripts/generate-mcp-deeplink.mjs`
 
 ### Develop from source
 
