@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { SkillPilotError } from './errors.js';
+import { SkillingError } from './errors.js';
 import {
   assertImportSourceAllowed,
   importSkillFromAgents,
@@ -16,18 +16,18 @@ describe('validateAgentsFolder', () => {
   it('rejects path traversal', () => {
     assert.throws(
       () => validateAgentsFolder('../../outside'),
-      (e: unknown) => e instanceof SkillPilotError && e.code === 'VALIDATION_ERROR',
+      (e: unknown) => e instanceof SkillingError && e.code === 'VALIDATION_ERROR',
     );
     assert.throws(
       () => validateAgentsFolder('foo/bar'),
-      (e: unknown) => e instanceof SkillPilotError && e.code === 'VALIDATION_ERROR',
+      (e: unknown) => e instanceof SkillingError && e.code === 'VALIDATION_ERROR',
     );
   });
 
   it('rejects invalid slug', () => {
     assert.throws(
       () => validateAgentsFolder('Bad_Folder'),
-      (e: unknown) => e instanceof SkillPilotError && e.code === 'VALIDATION_ERROR',
+      (e: unknown) => e instanceof SkillingError && e.code === 'VALIDATION_ERROR',
     );
   });
 });
@@ -35,7 +35,7 @@ describe('validateAgentsFolder', () => {
 describe('importSkillFromAgents', () => {
   it('imports find-skills from .agents into a temp skill root', () => {
     const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-import-'));
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-import-'));
     try {
       const result = importSkillFromAgents(repoRoot, 'find-skills', tmpRoot);
       assert.equal(result.skill_id, 'find-skills');
@@ -46,9 +46,9 @@ describe('importSkillFromAgents', () => {
   });
 
   it('rejects import source outside skill roots', () => {
-    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-import-escape-'));
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-import-escape-'));
     try {
-      const outside = path.join(os.tmpdir(), 'skillpilot-outside-skill.md');
+      const outside = path.join(os.tmpdir(), 'Skilling-outside-skill.md');
       fs.mkdirSync(path.dirname(outside), { recursive: true });
       fs.writeFileSync(
         outside,
@@ -62,7 +62,7 @@ body`,
       );
       assert.throws(
         () => assertImportSourceAllowed(outside, tmpRoot),
-        (e: unknown) => e instanceof SkillPilotError && e.code === 'PATH_ESCAPE',
+        (e: unknown) => e instanceof SkillingError && e.code === 'PATH_ESCAPE',
       );
     } finally {
       fs.rmSync(tmpRoot, { recursive: true, force: true });
@@ -71,11 +71,11 @@ body`,
 
   it('rejects malicious agents_folder', () => {
     const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-import-bad-'));
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-import-bad-'));
     try {
       assert.throws(
         () => importSkillFromAgents(repoRoot, '../../outside', tmpRoot),
-        (e: unknown) => e instanceof SkillPilotError && e.code === 'VALIDATION_ERROR',
+        (e: unknown) => e instanceof SkillingError && e.code === 'VALIDATION_ERROR',
       );
     } finally {
       fs.rmSync(tmpRoot, { recursive: true, force: true });
@@ -87,7 +87,7 @@ describe('importSkillFromPath', () => {
   it('allows source under .agents/skills', () => {
     const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
     const agentsSkill = path.join(repoRoot, '.agents', 'skills', 'find-skills', 'SKILL.md');
-    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-import-path-'));
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-import-path-'));
     try {
       const result = importSkillFromPath(agentsSkill, tmpRoot, { repo_root: repoRoot });
       assert.equal(result.skill_id, 'find-skills');

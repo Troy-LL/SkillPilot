@@ -2,9 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** SkillPilot install root (contains dist/index.js). */
+/** Skilling install root (contains dist/index.js). */
 export function resolveServerRoot(hookScriptDir) {
-  const env = process.env.SKILLPILOT_SERVER_ROOT?.trim();
+  const env = process.env.SKILLING_SERVER_ROOT?.trim();
   if (env) return path.resolve(env);
 
   const candidates = [

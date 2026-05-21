@@ -18,7 +18,7 @@ import {
 
 describe('session-store', () => {
   it('writes, reads, and clears session v2', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-session-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-session-'));
     try {
       writeSession(repo, {
         skill_id: 'test-skill',
@@ -49,9 +49,9 @@ describe('session-store', () => {
   });
 
   it('reads legacy v1 session shape', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-session-v1-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-session-v1-'));
     try {
-      const dir = path.join(repo, '.skillpilot');
+      const dir = path.join(repo, '.skilling');
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(
         path.join(dir, 'session.json'),
@@ -94,7 +94,7 @@ describe('session-store', () => {
   });
 
   it('readActiveBody strips header and checks skill_id', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-read-body-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-read-body-'));
     try {
       writeActiveBody(repo, 'test-skill', '# Procedure\n\nDo work.');
       assert.equal(readActiveBody(repo, 'test-skill'), '# Procedure\n\nDo work.');
@@ -105,7 +105,7 @@ describe('session-store', () => {
   });
 
   it('writeActiveBody creates bridge file', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-body-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-body-'));
     try {
       writeActiveBody(repo, 'test-skill', '# Procedure\n\nDo work.');
       const p = resolveActiveBodyPath(repo);
@@ -119,9 +119,9 @@ describe('session-store', () => {
   });
 
   it('readSession returns null for corrupt json', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-session-bad-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-session-bad-'));
     try {
-      const dir = path.join(repo, '.skillpilot');
+      const dir = path.join(repo, '.skilling');
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(path.join(dir, 'session.json'), '{not json', 'utf8');
       assert.equal(readSession(repo), null);

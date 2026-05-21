@@ -1,15 +1,15 @@
-import type { SkillPilotConfig } from '../config.js';
+import type { SkillingConfig } from '../config.js';
 import { logEvent } from '../observability.js';
 import { planFromCandidates, selectFromCandidates } from './heuristic.js';
 import type { SkillSelector } from './types.js';
 
 let selectorModeWarned = false;
 
-export function getSelector(config: SkillPilotConfig): SkillSelector {
+export function getSelector(config: SkillingConfig): SkillSelector {
   if (!selectorModeWarned && config.selector !== 'heuristic') {
     selectorModeWarned = true;
     logEvent('warn', 'skill_select', {
-      message: `SKILLPILOT_SELECTOR=${config.selector} is not implemented; using heuristic selector.`,
+      message: `SKILLING_SELECTOR=${config.selector} is not implemented; using heuristic selector.`,
     });
   }
   return {

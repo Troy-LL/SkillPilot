@@ -48,7 +48,7 @@ export function loadSkillMetaOverlay(
   return rec;
 }
 
-/** Merge SkillPilot-specific fields from `.agents/skills-meta/<id>.yaml` into parsed meta. */
+/** Merge Skilling-specific fields from `.agents/skills-meta/<id>.yaml` into parsed meta. */
 export function mergeSkillMetaOverlay(
   meta: SkillFrontMatter,
   overlay: Record<string, unknown>,

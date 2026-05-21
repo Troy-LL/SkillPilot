@@ -1,4 +1,4 @@
-# Skill naming and metadata rules (SkillPilot)
+# Skill naming and metadata rules (Skilling)
 
 Authoritative rules for **canonical skill identity**, **metadata**, and **store behavior**. Aligns with `architecture.md` (skill store contract, list/load, validation). Implementations **must reject** skills that violate these rules at **index or load time** (fail closed).
 
@@ -150,4 +150,4 @@ All fields below refer to **YAML front matter** on the primary document **or** a
 
 ---
 
-*Document version: 1.0 — SkillPilot skill store rules.*
+*Document version: 1.0 — Skilling skill store rules.*

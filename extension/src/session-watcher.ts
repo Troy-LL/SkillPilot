@@ -23,7 +23,7 @@ export class SessionWatcher implements vscode.Disposable {
     this.repoRoot = resolveRepoRootForExtension();
     if (!this.repoRoot) return;
 
-    const config = vscode.workspace.getConfiguration('skillpilot');
+    const config = vscode.workspace.getConfiguration('skilling');
     if (!config.get<boolean>('autoRegisterSession', true)) return;
 
     const file = sessionFilePath(this.repoRoot);
@@ -61,7 +61,7 @@ export class SessionWatcher implements vscode.Disposable {
     const session = readSessionFile(root);
     if (!session || !isSessionFileActive(session)) return;
 
-    const config = vscode.workspace.getConfiguration('skillpilot');
+    const config = vscode.workspace.getConfiguration('skilling');
     if (!config.get<boolean>('autoRegisterSession', true)) return;
 
     this.manager.registerFromSession(session, this.effectiveTtlMs(session.ttl_ms));

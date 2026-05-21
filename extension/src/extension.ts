@@ -13,7 +13,7 @@ type LoadPayload = {
 };
 
 function effectiveTtlMs(loadTtl: number): number {
-  const override = vscode.workspace.getConfiguration('skillpilot').get<number>('ttlMsOverride', 0);
+  const override = vscode.workspace.getConfiguration('skilling').get<number>('ttlMsOverride', 0);
   return override > 0 ? override : loadTtl;
 }
 
@@ -41,7 +41,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('skillpilot.autoRegisterSession')) {
+      if (e.affectsConfiguration('skilling.autoRegisterSession')) {
         sessionWatcher.dispose();
         sessionWatcher = new SessionWatcher(manager, effectiveTtlMs);
         sessionWatcher.start();
@@ -50,23 +50,23 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('skillpilot.registerActiveSkill', async () => {
+    vscode.commands.registerCommand('skilling.registerActiveSkill', async () => {
       const correlationId = await vscode.window.showInputBox({
-        title: 'SkillPilot correlation_id',
+        title: 'Skilling correlation_id',
         prompt: 'Paste correlation_id from the load tool response',
         validateInput: (v) => (UUID_RE.test(v.trim()) ? null : 'Must be a UUID'),
       });
       if (!correlationId) return;
 
       const skillId = await vscode.window.showInputBox({
-        title: 'SkillPilot skill_id',
+        title: 'Skilling skill_id',
         prompt: 'Paste skill_id from the load response',
       });
       if (!skillId?.trim()) return;
 
       const ttlInput = await vscode.window.showInputBox({
         title: 'TTL (ms)',
-        prompt: 'Leave empty for default 300000 (5 min) or skillpilot.ttlMsOverride',
+        prompt: 'Leave empty for default 300000 (5 min) or skilling.ttlMsOverride',
         value: '300000',
       });
       const ttlMs = ttlInput?.trim() ? Number(ttlInput) : 300_000;
@@ -76,33 +76,33 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       manager.register(correlationId.trim(), skillId.trim(), effectiveTtlMs(ttlMs));
-      vscode.window.showInformationMessage(`SkillPilot: tracking ${skillId.trim()} until TTL.`);
+      vscode.window.showInformationMessage(`Skilling: tracking ${skillId.trim()} until TTL.`);
     }),
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('skillpilot.registerActiveSession', async () => {
+    vscode.commands.registerCommand('skilling.registerActiveSession', async () => {
       const repoRoot = resolveRepoRootForExtension();
       if (!repoRoot) {
-        vscode.window.showErrorMessage('SkillPilot: open a workspace folder first.');
+        vscode.window.showErrorMessage('Skilling: open a workspace folder first.');
         return;
       }
       const session = readSessionFile(repoRoot);
       if (!session) {
         const looked = sessionFilePath(repoRoot);
         vscode.window.showErrorMessage(
-          `SkillPilot: no session at ${looked}. Call MCP begin_task first, or set skillpilot.serverEntry / skillpilot.skillRoot to the SkillPilot repo.`,
+          `Skilling: no session at ${looked}. Call MCP begin_task first, or set skilling.serverEntry / skilling.skillRoot to the Skilling repo.`,
         );
         return;
       }
       manager.registerFromSession(session, effectiveTtlMs(session.ttl_ms));
       const label = session.title ?? session.skill_id;
-      vscode.window.showInformationMessage(`SkillPilot: tracking ${label} from session file.`);
+      vscode.window.showInformationMessage(`Skilling: tracking ${label} from session file.`);
     }),
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('skillpilot.registerFromClipboard', async () => {
+    vscode.commands.registerCommand('skilling.registerFromClipboard', async () => {
       const text = await vscode.env.clipboard.readText();
       try {
         const payload = parseLoadPayload(text.trim());
@@ -112,7 +112,7 @@ export function activate(context: vscode.ExtensionContext): void {
           effectiveTtlMs(payload.ttl_ms!),
         );
         vscode.window.showInformationMessage(
-          `SkillPilot: tracking ${payload.skill_id} (from clipboard JSON).`,
+          `Skilling: tracking ${payload.skill_id} (from clipboard JSON).`,
         );
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -124,7 +124,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('skillpilot.dismissActiveSkill', () => manager.dismiss(true)),
+    vscode.commands.registerCommand('skilling.dismissActiveSkill', () => manager.dismiss(true)),
   );
 }
 

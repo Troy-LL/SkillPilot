@@ -6,7 +6,7 @@ import { validateInjectMode } from './validate.js';
 export const SESSION_SCHEMA_VERSION = 2;
 
 const ACTIVE_BODY_HEADER_RE =
-  /^<!-- SkillPilot ephemeral bridge[^>]*skill_id:\s*([^\s]+)\s*-->\s*\n\n/;
+  /^<!-- Skilling ephemeral bridge[^>]*skill_id:\s*([^\s]+)\s*-->\s*\n\n/;
 
 /** Fields required when writing a new session (v2). */
 export type SkillSessionWrite = {
@@ -32,11 +32,11 @@ export type SkillSession = SkillSessionWrite & {
 };
 
 export function resolveSessionPath(repoRoot: string): string {
-  return path.join(path.resolve(repoRoot), '.skillpilot', 'session.json');
+  return path.join(path.resolve(repoRoot), '.skilling', 'session.json');
 }
 
 export function resolveActiveBodyPath(repoRoot: string): string {
-  return path.join(path.resolve(repoRoot), '.skillpilot', 'active-body.md');
+  return path.join(path.resolve(repoRoot), '.skilling', 'active-body.md');
 }
 
 function normalizeV1(data: Record<string, unknown>): SkillSession | null {
@@ -100,13 +100,13 @@ export function readSession(repoRoot: string): SkillSession | null {
     return null;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    process.stderr.write(`skillpilot: corrupt session.json ignored: ${msg}\n`);
+    process.stderr.write(`Skilling: corrupt session.json ignored: ${msg}\n`);
     return null;
   }
 }
 
 export function writeSession(repoRoot: string, session: SkillSessionWrite): void {
-  const dir = path.join(path.resolve(repoRoot), '.skillpilot');
+  const dir = path.join(path.resolve(repoRoot), '.skilling');
   fs.mkdirSync(dir, { recursive: true });
   const full: SkillSession = { version: SESSION_SCHEMA_VERSION, ...session };
   fs.writeFileSync(resolveSessionPath(repoRoot), JSON.stringify(full, null, 2), 'utf8');
@@ -119,10 +119,10 @@ export function clearSession(repoRoot: string): void {
 }
 
 export function writeActiveBody(repoRoot: string, skillId: string, body: string): void {
-  const dir = path.join(path.resolve(repoRoot), '.skillpilot');
+  const dir = path.join(path.resolve(repoRoot), '.skilling');
   fs.mkdirSync(dir, { recursive: true });
   const header =
-    `<!-- SkillPilot ephemeral bridge — do not commit. skill_id: ${skillId} -->\n\n`;
+    `<!-- Skilling ephemeral bridge — do not commit. skill_id: ${skillId} -->\n\n`;
   fs.writeFileSync(resolveActiveBodyPath(repoRoot), header + body, 'utf8');
 }
 

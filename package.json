@@ -1,7 +1,7 @@
 {
-  "name": "skillpilot-mcp",
-  "version": "1.4.2",
-  "description": "SkillPilot MCP — filesystem skill router (list / select / load / cleanup)",
+  "name": "skilling",
+  "version": "1.5.0",
+  "description": "Skilling MCP — filesystem skill router (list / select / load / cleanup)",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
@@ -47,7 +47,7 @@
     "README.md"
   ],
   "bin": {
-    "skillpilot-mcp": "scripts/run-mcp.mjs"
+    "skilling": "scripts/run-mcp.mjs"
   },
   "keywords": [
     "mcp",
@@ -58,7 +58,7 @@
     "token-budget",
     "model-context-protocol"
   ],
-  "author": "SkillPilot Contributors",
+  "author": "Skilling Contributors",
   "license": "ISC",
   "repository": {
     "type": "git",

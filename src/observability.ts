@@ -1,10 +1,10 @@
-import type { LogLevel, SkillPilotConfig } from './config.js';
+import type { LogLevel, SkillingConfig } from './config.js';
 
 type LogFields = Record<string, string | number | boolean | undefined>;
 
-let activeConfig: SkillPilotConfig | null = null;
+let activeConfig: SkillingConfig | null = null;
 
-export function bindObservability(config: SkillPilotConfig): void {
+export function bindObservability(config: SkillingConfig): void {
   activeConfig = config;
 }
 
@@ -44,7 +44,7 @@ export function logToolError(
   logEvent('error', tool, { ok: false, code, ...fields });
 }
 
-/** When SKILLPILOT_LOG_PROMPTS=true, log a truncated prompt/goal snippet at debug level. */
+/** When SKILLING_LOG_PROMPTS=true, log a truncated prompt/goal snippet at debug level. */
 export function logPromptSnippet(tool: string, text: string): void {
   if (!activeConfig?.logPrompts || !text) return;
   const snippet = text.length > 200 ? `${text.slice(0, 200)}…` : text;

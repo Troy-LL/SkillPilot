@@ -12,7 +12,7 @@ import { resolveSkillsMetaDir } from './skill-meta-overlay.js';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-export type SkillPilotConfig = {
+export type SkillingConfig = {
   skillsRoot: string;
   skillsMetaDir: string;
   selector: 'heuristic' | 'embedding' | 'llm';
@@ -43,10 +43,10 @@ function parseLogLevel(v: string | undefined): LogLevel {
 }
 
 function loadFileConfig(cwd: string): FileConfig {
-  const explicit = process.env['SKILLPILOT_CONFIG']?.trim();
+  const explicit = process.env['SKILLING_CONFIG']?.trim();
   const candidates = [
     explicit,
-    path.join(cwd, 'skillpilot.config.json'),
+    path.join(cwd, 'skilling.config.json'),
   ].filter(Boolean) as string[];
   for (const p of candidates) {
     try {
@@ -60,37 +60,37 @@ function loadFileConfig(cwd: string): FileConfig {
   return {};
 }
 
-export function loadConfig(cwd: string, cliSkillRoot?: string): SkillPilotConfig {
+export function loadConfig(cwd: string, cliSkillRoot?: string): SkillingConfig {
   const file = loadFileConfig(cwd);
   const envRoot =
-    process.env['SKILL_ROOT']?.trim() || process.env['SKILLPILOT_SKILLS_ROOT']?.trim();
+    process.env['SKILL_ROOT']?.trim() || process.env['SKILLING_SKILLS_ROOT']?.trim();
   const skillsRoot = path.resolve(
     cliSkillRoot || envRoot || file.skillsRoot || path.join(cwd, '.agents', 'skills'),
   );
   const skillsMetaDir = path.resolve(
-    process.env['SKILLPILOT_SKILLS_META_DIR']?.trim() ||
+    process.env['SKILLING_SKILLS_META_DIR']?.trim() ||
       file.skillsMetaDir ||
       resolveSkillsMetaDir(skillsRoot),
   );
 
-  const selectorRaw = process.env['SKILLPILOT_SELECTOR']?.trim() || file.selector || 'heuristic';
+  const selectorRaw = process.env['SKILLING_SELECTOR']?.trim() || file.selector || 'heuristic';
   const selector =
     selectorRaw === 'embedding' || selectorRaw === 'llm' ? selectorRaw : 'heuristic';
 
   const maxInjectBytes = Number(
-    process.env['SKILLPILOT_MAX_INJECT_BYTES'] ?? file.maxInjectBytes ?? MAX_INJECT_BYTES,
+    process.env['SKILLING_MAX_INJECT_BYTES'] ?? file.maxInjectBytes ?? MAX_INJECT_BYTES,
   );
   const defaultTokenBudget = Number(
-    process.env['SKILLPILOT_DEFAULT_TOKEN_BUDGET'] ??
+    process.env['SKILLING_DEFAULT_TOKEN_BUDGET'] ??
       file.defaultTokenBudget ??
       DEFAULT_TOKEN_BUDGET,
   );
   const ttlSeconds = Number(
-    process.env['SKILLPILOT_TTL_SECONDS'] ?? file.ttlSeconds ?? DEFAULT_TTL_MS / 1000,
+    process.env['SKILLING_TTL_SECONDS'] ?? file.ttlSeconds ?? DEFAULT_TTL_MS / 1000,
   );
 
   const injectModeRaw =
-    process.env['SKILLPILOT_DEFAULT_INJECT_MODE']?.trim() || file.defaultInjectMode || 'full';
+    process.env['SKILLING_DEFAULT_INJECT_MODE']?.trim() || file.defaultInjectMode || 'full';
   const defaultInjectMode: InjectMode =
     injectModeRaw === 'summary' ||
     injectModeRaw === 'compact' ||
@@ -100,10 +100,10 @@ export function loadConfig(cwd: string, cliSkillRoot?: string): SkillPilotConfig
       : 'full';
 
   const selectMinConfidenceRaw = Number(
-    process.env['SKILLPILOT_SELECT_MIN_CONFIDENCE'] ?? SELECT_MIN_CONFIDENCE,
+    process.env['SKILLING_SELECT_MIN_CONFIDENCE'] ?? SELECT_MIN_CONFIDENCE,
   );
   const planMinConfidenceRaw = Number(
-    process.env['SKILLPILOT_PLAN_MIN_CONFIDENCE'] ?? PLAN_MIN_CONFIDENCE,
+    process.env['SKILLING_PLAN_MIN_CONFIDENCE'] ?? PLAN_MIN_CONFIDENCE,
   );
   const selectMinConfidence = Number.isFinite(selectMinConfidenceRaw)
     ? selectMinConfidenceRaw
@@ -121,8 +121,8 @@ export function loadConfig(cwd: string, cliSkillRoot?: string): SkillPilotConfig
       ? defaultTokenBudget
       : DEFAULT_TOKEN_BUDGET,
     ttlSeconds: Number.isFinite(ttlSeconds) ? ttlSeconds : DEFAULT_TTL_MS / 1000,
-    logLevel: parseLogLevel(process.env['SKILLPILOT_LOG_LEVEL'] ?? file.log?.level),
-    logPrompts: process.env['SKILLPILOT_LOG_PROMPTS'] === 'true',
+    logLevel: parseLogLevel(process.env['SKILLING_LOG_LEVEL'] ?? file.log?.level),
+    logPrompts: process.env['SKILLING_LOG_PROMPTS'] === 'true',
     defaultInjectMode,
     selectMinConfidence,
     planMinConfidence,

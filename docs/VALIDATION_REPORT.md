@@ -1,6 +1,6 @@
-# SkillPilot validation report (template + CI run)
+# Skilling validation report (template + CI run)
 
-This document records the **ordered validation** steps for SkillPilot. Numbers match the onboarding checklist.
+This document records the **ordered validation** steps for Skilling. Numbers match the onboarding checklist.
 
 ## Current state (2026-05-21)
 
@@ -11,8 +11,8 @@ This document records the **ordered validation** steps for SkillPilot. Numbers m
 | **MCP tools** | `list`, `skill_list`, `select`, `skill_plan`, `load`, `cleanup`, `ingest`, `begin_task`, `end_task`, `get_session`, `health` |
 | **Catalog (`SKILL_ROOT`)** | **`.agents/skills/`** — 8 skills in this repo |
 | **Automated smoke** | `list` → `skill_plan` → `begin_task` → session file → `get_session` → `health` → `end_task` ×2 (`scripts/mcp-smoke.mjs`) |
-| **Session SOT** | `.skillpilot/session.json` + optional `active-body.md` bridge at repo root (gitignored) |
-| **Hooks** | [`.cursor/hooks.json`](../.cursor/hooks.json) → [`hooks/skillpilot-auto-begin.mjs`](../hooks/skillpilot-auto-begin.mjs), [`hooks/skillpilot-session-end.mjs`](../hooks/skillpilot-session-end.mjs) |
+| **Session SOT** | `.skilling/session.json` + optional `active-body.md` bridge at repo root (gitignored) |
+| **Hooks** | [`.cursor/hooks.json`](../.cursor/hooks.json) → [`hooks/skilling-auto-begin.mjs`](../hooks/skilling-auto-begin.mjs), [`hooks/skilling-session-end.mjs`](../hooks/skilling-session-end.mjs) |
 | **CI** | `npm ci` → `npm test` (unit + hook scripts) → `npm run smoke` (`.github/workflows/ci.yml`) |
 
 Aligned with project MCP guidance (`.agents/skills/mcp-builder`, `typescript-mcp-server-generator`): `McpServer` + `registerTool`, Zod input schemas, `content` + `structuredContent` on tool results, tool annotations (`readOnlyHint`, `idempotentHint`, etc.).
@@ -21,9 +21,9 @@ Aligned with project MCP guidance (`.agents/skills/mcp-builder`, `typescript-mcp
 
 ## Environment
 
-- **Repo:** SkillPilot (skill router MCP).
+- **Repo:** Skilling (skill router MCP).
 - **Default skill root:** **`.agents/skills/`** (or `SKILL_ROOT` / `--skill-root`).
-- **Repo root for session file:** parent of `.agents/skills/` (same rule as MCP `begin_task` / extension `skillpilot.skillRoot`).
+- **Repo root for session file:** parent of `.agents/skills/` (same rule as MCP `begin_task` / extension `skilling.skillRoot`).
 
 ---
 
@@ -61,12 +61,12 @@ Aligned with project MCP guidance (`.agents/skills/mcp-builder`, `typescript-mcp
 
 ### Historical — Step 3 (2026-05-14, removed catalog skill)
 
-Early verification used seed skill **`com-skillpilot-code-review`** (since removed from `skills/`):
+Early verification used seed skill **`com-Skilling-code-review`** (since removed from `skills/`):
 
 - **`load`** returned `skill_id`, body, `ttl_ms` (300000), `correlation_id` **`2490aad0-30f3-471d-bf6d-cd88f6e3b566`**.
 - **`cleanup`** with that id returned **`ok: true`**.
 
-This confirmed **Cursor can drive the SkillPilot stdio MCP server** and the **`load` → `cleanup`** lifecycle in the IDE.
+This confirmed **Cursor can drive the Skilling stdio MCP server** and the **`load` → `cleanup`** lifecycle in the IDE.
 
 ---
 
@@ -102,12 +102,12 @@ This confirmed **Cursor can drive the SkillPilot stdio MCP server** and the **`l
 
 ### Historical — Step 6 (2026-05-14)
 
-- Task: Code review of SkillPilot `src/` using loaded **`com-skillpilot-code-review`** (removed from catalog).
+- Task: Code review of Skilling `src/` using loaded **`com-Skilling-code-review`** (removed from catalog).
 - Cleanup remembered? **Yes** — `cleanup` with correlation id from that `load`.
 
 ### Current dogfood (optional)
 
-- Prefer **`begin_task`** / **`end_task`** and catalog skills (`find-skills`, `com-skillpilot-orchestrator`); record task + whether **`end_task`** was remembered.
+- Prefer **`begin_task`** / **`end_task`** and catalog skills (`find-skills`, `com-skilling-orchestrator`); record task + whether **`end_task`** was remembered.
 
 ---
 
@@ -123,7 +123,7 @@ This confirmed **Cursor can drive the SkillPilot stdio MCP server** and the **`l
 - Session SOT v2 (`summary`, `rationale`, `title` on disk).
 - `begin_task` `response_detail: summary` (default); `get_session` enrichment.
 - `beforeSubmitPrompt` auto-begin hook + `active-body.md` bridge.
-- Extension `skillpilot.autoRegisterSession` + rich status bar.
+- Extension `skilling.autoRegisterSession` + rich status bar.
 - Skills: `create-hook`, `create-rule` imported; orchestrator v1.1.
 
 **Next optional work:**
@@ -151,14 +151,14 @@ This confirmed **Cursor can drive the SkillPilot stdio MCP server** and the **`l
 
 **Sprint D (catalog / find-skills, 2026-05-14):** Project-local **`npx skills add`**, **`ingest`**, **`npm run skills:add` / `skills:import`**, **`docs/SKILLS_CATALOG.md`**.
 
-**Sprint E (autonomous MCP, 2026-05-17):** **`begin_task`** / **`end_task`** / **`get_session`**, **`.skillpilot/session.json`**, **`.cursor/rules/skillpilot-lifecycle.mdc`**, **`docs/AUTONOMOUS_USAGE.md`**, extension **Register Active Session** (repo root = parent of `dist/`, not `dist/` itself). CI smoke: `list` → `begin_task` → `get_session` → `end_task` ×2.
+**Sprint E (autonomous MCP, 2026-05-17):** **`begin_task`** / **`end_task`** / **`get_session`**, **`.skilling/session.json`**, **`.cursor/rules/skilling-lifecycle.mdc`**, **`docs/AUTONOMOUS_USAGE.md`**, extension **Register Active Session** (repo root = parent of `dist/`, not `dist/` itself). CI smoke: `list` → `begin_task` → `get_session` → `end_task` ×2.
 
 ### Sprint C — manual verification (Cursor, 2026-05-14)
 
-*Uses removed seed skill **`com-skillpilot-code-review`**; kept as audit history.*
+*Uses removed seed skill **`com-Skilling-code-review`**; kept as audit history.*
 
-- [x] **Extension settings** — `skillpilot.serverEntry` and `skillpilot.skillRoot` in Cursor user `settings.json`.
-- [x] **`load`** — `com-skillpilot-code-review`; `correlation_id` **`9d038a38-1033-48df-af01-94693aa504ba`**.
+- [x] **Extension settings** — `skilling.serverEntry` and `skilling.skillRoot` in Cursor user `settings.json`.
+- [x] **`load`** — `com-Skilling-code-review`; `correlation_id` **`9d038a38-1033-48df-af01-94693aa504ba`**.
 - [x] **Register from load JSON** — clipboard payload; status bar tracked active skill.
 - [x] **Dismiss / cleanup** — MCP **`cleanup`** `ok: true` for that correlation id.
 
@@ -166,21 +166,21 @@ This confirmed **Cursor can drive the SkillPilot stdio MCP server** and the **`l
 
 - [x] **`npm run build`** && **`npm test`** && **`npm run smoke`**
 - [x] Cursor MCP tools (8): includes **`begin_task`**, **`end_task`**, **`get_session`**, **`ingest`**
-- [x] Chat: **`begin_task`** (`find a skill for API testing`, phase `plan`) → **`find-skills`**; **`get_session`** → `active: true`; **`end_task`** → `ok: true`, correlation **`d1fd07c3-34f6-40a6-b1a9-641ce2cea5f1`**; **`.skillpilot/session.json`** removed
+- [x] Chat: **`begin_task`** (`find a skill for API testing`, phase `plan`) → **`find-skills`**; **`get_session`** → `active: true`; **`end_task`** → `ok: true`, correlation **`d1fd07c3-34f6-40a6-b1a9-641ce2cea5f1`**; **`.skilling/session.json`** removed
 - [x] Extension: **Register Active Session** → `find-skills` from session file; status bar tracking (after `serverEntry` repo-root fix)
 - [ ] Extension: **Dismiss Active Skill** → MCP **`cleanup`** `ok: true` *(optional explicit retest; Sprint C path already validated cleanup)*
 - [x] E2 Phase 1: **`sessionEnd`** hook → cleanup + clear session (see **`docs/AUTONOMOUS_USAGE.md`** § E2)
-- [ ] E2 manual: `begin_task` → close composer → session file gone; Hooks output shows `skillpilot-session-end`
+- [ ] E2 manual: `begin_task` → close composer → session file gone; Hooks output shows `Skilling-session-end`
 
 ### Sprint F — manual verification (Cursor)
 
 - [x] `npm run test:auto-begin-hook` passes after `npm run build`
 - [ ] Reload hooks; send coding prompt → `session.json` + `active-body.md` without agent `begin_task`
 - [ ] Second prompt → hook skips (Hooks stderr: `skip begin_task`)
-- [ ] Extension status bar auto-appears (`skillpilot.autoRegisterSession`)
+- [ ] Extension status bar auto-appears (`skilling.autoRegisterSession`)
 - [ ] Agent reply is one line (no skill menu); uses `summary` from session
 - [ ] `find a skill for X` routes to `find-skills`; normal fix-CI prompt does not show `list`
-- [ ] Opt-out: `.skillpilot/disable-auto-begin` or `SKILLPILOT_SKIP_AUTO_BEGIN=1` disables hook
+- [ ] Opt-out: `.skilling/disable-auto-begin` or `SKILLING_SKIP_AUTO_BEGIN=1` disables hook
 
 ### Review remediation (2026-05-21)
 
@@ -198,6 +198,6 @@ Code review fixes landed in commit `a77f92f`:
 Paste exact errors here during manual runs:
 
 ```
-2026-05-17 — Register Active Session looked under dist/.skillpilot/session.json when
+2026-05-17 — Register Active Session looked under dist/.skilling/session.json when
 serverEntry parent was dist/; fixed extension to use parent of dist/. Resolved.
 ```

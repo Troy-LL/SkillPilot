@@ -1,7 +1,7 @@
 # Source and dev-only (dist/ is included via package.json "files")
 src/
 extension/
-skillpilot_docs/
+skilling_docs/
 skills/
 docs/
 .github/
@@ -11,10 +11,10 @@ skill_router_architecture.svg
 v1-exceptions.md
 skill-rules.md
 skills-lock.json
-skillpilot.config.json.example
+Skilling.config.json.example
 *.tgz
 *.log
-.skillpilot/
+.skilling/
 
 # Scripts not shipped in the npm package
 scripts/token-benchmark.mjs

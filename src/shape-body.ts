@@ -1,5 +1,5 @@
 import { MAX_INJECT_BYTES } from './constants.js';
-import { SkillPilotError } from './errors.js';
+import { SkillingError } from './errors.js';
 import { estimateTokens } from './token-estimate.js';
 
 const INTERNAL_ONLY_RE =
@@ -107,7 +107,7 @@ function prepareRawBody(rawBody: string, mode: InjectMode, options: ShapeBodyOpt
   switch (mode) {
     case 'summary':
       if (!options.meta) {
-        throw new SkillPilotError(
+        throw new SkillingError(
           'VALIDATION_ERROR',
           'inject_mode=summary requires skill metadata (title/summary).',
         );
@@ -144,7 +144,7 @@ export function shapeSkillBody(
   }
 
   if (bytes > maxInjectBytes) {
-    throw new SkillPilotError(
+    throw new SkillingError(
       'BODY_TOO_LARGE',
       `Shaped body is ${bytes} bytes (inject_mode=${mode}); max inject is ${maxInjectBytes} bytes. Try inject_mode=summary, compact, or sections.`,
     );

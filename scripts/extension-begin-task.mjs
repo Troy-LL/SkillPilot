@@ -1,6 +1,6 @@
 /**
- * One-shot MCP begin_task for SkillPilot hooks / extension.
- * Usage: SKILLPILOT_PROMPT="..." node scripts/extension-begin-task.mjs <dist/index.js> [skillRoot]
+ * One-shot MCP begin_task for Skilling hooks / extension.
+ * Usage: SKILLING_PROMPT="..." node scripts/extension-begin-task.mjs <dist/index.js> [skillRoot]
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,11 +9,11 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 const entry = process.argv[2];
 const skillRootArg = process.argv[3];
-const prompt = process.env.SKILLPILOT_PROMPT?.trim();
+const prompt = process.env.SKILLING_PROMPT?.trim();
 
 if (!entry || !prompt) {
   process.stderr.write(
-    'Usage: SKILLPILOT_PROMPT="..." node extension-begin-task.mjs <dist/index.js> [skillRoot]\n',
+    'Usage: SKILLING_PROMPT="..." node extension-begin-task.mjs <dist/index.js> [skillRoot]\n',
   );
   process.exit(2);
 }
@@ -30,7 +30,7 @@ const transport = new StdioClientTransport({
   stderr: 'pipe',
 });
 
-const client = new Client({ name: 'skillpilot-extension-begin-task', version: '0.0.0' });
+const client = new Client({ name: 'Skilling-extension-begin-task', version: '0.0.0' });
 
 try {
   await client.connect(transport);

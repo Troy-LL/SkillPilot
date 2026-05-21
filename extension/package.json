@@ -1,9 +1,9 @@
 {
-  "name": "skillpilot-lifecycle",
-  "displayName": "SkillPilot Lifecycle",
-  "description": "Status-bar TTL and MCP cleanup for SkillPilot skill sessions (begin_task / load). Register from .skillpilot/session.json or clipboard.",
+  "name": "skilling-lifecycle",
+  "displayName": "Skilling Lifecycle",
+  "description": "Status-bar TTL and MCP cleanup for Skilling skill sessions (begin_task / load). Register from .skilling/session.json or clipboard.",
   "version": "0.3.0",
-  "publisher": "skillpilot",
+  "publisher": "Skilling",
   "license": "ISC",
   "engines": {
     "vscode": "^1.85.0"
@@ -13,7 +13,7 @@
     "Machine Learning"
   ],
   "keywords": [
-    "skillpilot",
+    "Skilling",
     "mcp",
     "cursor",
     "agent",
@@ -37,61 +37,61 @@
   "contributes": {
     "commands": [
       {
-        "command": "skillpilot.registerActiveSession",
+        "command": "skilling.registerActiveSession",
         "title": "Register Active Session",
-        "category": "SkillPilot",
+        "category": "Skilling",
         "enablement": "workspaceFolderCount != 0"
       },
       {
-        "command": "skillpilot.registerFromClipboard",
+        "command": "skilling.registerFromClipboard",
         "title": "Register Active Skill from Load JSON",
-        "category": "SkillPilot"
+        "category": "Skilling"
       },
       {
-        "command": "skillpilot.registerActiveSkill",
+        "command": "skilling.registerActiveSkill",
         "title": "Register Active Skill…",
-        "category": "SkillPilot"
+        "category": "Skilling"
       },
       {
-        "command": "skillpilot.dismissActiveSkill",
+        "command": "skilling.dismissActiveSkill",
         "title": "Dismiss Active Skill (Cleanup Now)",
-        "category": "SkillPilot",
+        "category": "Skilling",
         "icon": "$(close)"
       }
     ],
     "configuration": {
-      "title": "SkillPilot",
+      "title": "Skilling",
       "properties": {
-        "skillpilot.serverEntry": {
+        "skilling.serverEntry": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Absolute path to SkillPilot `dist/index.js`. Required for MCP cleanup. Repo root = **parent of `dist/`** (used to find `.skillpilot/session.json`)."
+          "markdownDescription": "Absolute path to Skilling `dist/index.js`. Required for MCP cleanup. Repo root = **parent of `dist/`** (used to find `.skilling/session.json`)."
         },
-        "skillpilot.skillRoot": {
+        "skilling.skillRoot": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Absolute path to the `skills/` folder. Optional; repo root = parent of `skills/`. Used when resolving `.skillpilot/session.json`."
+          "markdownDescription": "Absolute path to the `skills/` folder. Optional; repo root = parent of `skills/`. Used when resolving `.skilling/session.json`."
         },
-        "skillpilot.autoCleanupOnTtl": {
+        "skilling.autoCleanupOnTtl": {
           "type": "boolean",
           "default": true,
           "description": "Call MCP cleanup when the status-bar TTL expires."
         },
-        "skillpilot.promptBeforeCleanup": {
+        "skilling.promptBeforeCleanup": {
           "type": "boolean",
           "default": false,
           "description": "Show a confirmation dialog before running cleanup when TTL expires."
         },
-        "skillpilot.ttlMsOverride": {
+        "skilling.ttlMsOverride": {
           "type": "number",
           "default": 0,
           "minimum": 0,
           "description": "If greater than 0, use this TTL in milliseconds instead of the value from load/begin_task."
         },
-        "skillpilot.autoRegisterSession": {
+        "skilling.autoRegisterSession": {
           "type": "boolean",
           "default": true,
-          "description": "Watch .skillpilot/session.json and start status-bar TTL automatically when it changes."
+          "description": "Watch .skilling/session.json and start status-bar TTL automatically when it changes."
         }
       }
     }

@@ -2,7 +2,7 @@
  * token-benchmark.mjs
  *
  * Measures real token savings: naïve "inject everything" baseline vs
- * SkillPilot's tiered approach (Tier 1 selection + single shaped body).
+ * Skilling's tiered approach (Tier 1 selection + single shaped body).
  *
  * Run: npm run benchmark
  * Prereq: npm run build (uses dist/ modules)
@@ -37,7 +37,7 @@ const SCENARIOS = [
   {
     id: 'create_hook',
     prompt: 'create a cursor hook that fires at session start to auto-load context',
-    expected_skill_id: 'com-skillpilot-orchestrator',
+    expected_skill_id: 'com-skilling-orchestrator',
   },
   {
     id: 'create_rule',
@@ -61,8 +61,8 @@ const SCENARIOS = [
   },
   {
     id: 'orchestrator',
-    prompt: 'begin a skillpilot task, run skill_plan, and track the full session lifecycle',
-    expected_skill_id: 'com-skillpilot-orchestrator',
+    prompt: 'begin a Skilling task, run skill_plan, and track the full session lifecycle',
+    expected_skill_id: 'com-skilling-orchestrator',
   },
   {
     id: 'typescript_cli',
@@ -109,7 +109,7 @@ function summaryBlock(entry) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 console.log('\n╔══════════════════════════════════════════════════════════════╗');
-console.log('║         SkillPilot — Token Savings Benchmark                 ║');
+console.log('║         Skilling — Token Savings Benchmark                 ║');
 console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
 // 1. Index all skills
@@ -248,7 +248,7 @@ Key:
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 console.log('  Section 2: Per-Request Token Comparison');
 console.log('  Baseline = inject ALL skill bodies unconditionally');
-console.log('  SkillPilot = Tier 1 scan (selection) + 1 matched body (injection)');
+console.log('  Skilling = Tier 1 scan (selection) + 1 matched body (injection)');
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
 const metasArr = [...metas.values()];
@@ -276,7 +276,7 @@ for (const scenario of SCENARIOS) {
   // Naive baseline: all full bodies in context
   const naiveTokens = totalFull;
 
-  // SkillPilot total cost = Tier 1 scan + injected body
+  // Skilling total cost = Tier 1 scan + injected body
   const spTotalFull = totalTier1 + spFullTokens;
   const spTotalCompact = totalTier1 + spCompactTokens;
   const spTotalSummary = totalTier1 + spSummaryTokens;
@@ -362,7 +362,7 @@ console.log('\n  All selection scenarios passed.\n');
 console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 console.log('  Section 3: Cumulative Token Cost over N Steps (matched scenario avg)');
 console.log('  Naive: all bodies stay in context every step');
-console.log('  SkillPilot: Tier 1 scan once + one body in context (evicted after task)');
+console.log('  Skilling: Tier 1 scan once + one body in context (evicted after task)');
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
 const matchedResults = scenarioResults.filter((r) => r.matched !== 'no match');
@@ -393,7 +393,7 @@ for (const n of steps) {
   // Naive: all bodies × N steps (they persist the whole time)
   const naiveTotal = totalFull * n;
 
-  // SkillPilot: T1 scan once (selection is amortized per task, not per step)
+  // Skilling: T1 scan once (selection is amortized per task, not per step)
   // + one matched body stays in context for all N steps
   // Note: T1 scan cost is paid once at task start, body stays in context
   const spFullTotal = totalTier1 + Math.round(avgFullInjected) * n;
@@ -450,7 +450,7 @@ console.log(
   `  Naive baseline (inject all):     ${formatNum(totalFull)} tokens per request`,
 );
 console.log(
-  `  SkillPilot Tier 1 scan overhead: ${formatNum(totalTier1)} tokens per request`,
+  `  Skilling Tier 1 scan overhead: ${formatNum(totalTier1)} tokens per request`,
 );
 console.log(`  Average context reduction:       ~${Math.round(avgSavedPct)}% per matched request`);
 console.log(`  Matched-only context reduction:  ~${Math.round(avgMatchedSavedPct)}%`);

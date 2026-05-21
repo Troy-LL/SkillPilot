@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { SkillPilotError } from './errors.js';
+import { SkillingError } from './errors.js';
 import { parseSkillFile } from './parse.js';
 import type { SkillFrontMatter } from './parse.js';
 import { resolveSkillsMetaDir } from './skill-meta-overlay.js';
@@ -44,17 +44,17 @@ function realPathBestEffort(p: string): string {
 
 export function skillRootSetupHint(resolvedPath: string): string {
   return [
-    `SkillPilot: skill root not found at ${resolvedPath}`,
+    `Skilling: skill root not found at ${resolvedPath}`,
     'Set SKILL_ROOT in your MCP server env (e.g. "${workspaceFolder}/.agents/skills") or pass --skill-root <path>.',
     'npm/npx example env: SKILL_ROOT=/your/project/.agents/skills',
-    'Bundled catalog: npx -y skillpilot-mcp (uses package .agents/skills unless SKILL_ROOT is set).',
+    'Bundled catalog: npx -y Skilling (uses package .agents/skills unless SKILL_ROOT is set).',
   ].join('\n');
 }
 
 export function resolveSkillRoot(rootArg: string): string {
   const resolved = path.resolve(rootArg);
   if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
-    throw new SkillPilotError('STORE_UNAVAILABLE', skillRootSetupHint(resolved));
+    throw new SkillingError('STORE_UNAVAILABLE', skillRootSetupHint(resolved));
   }
   return realPathBestEffort(resolved);
 }
@@ -105,7 +105,7 @@ function computeIndexSignalMtime(rootReal: string, metaDir: string): number {
 export function assertPathUnderRoot(rootReal: string, candidateAbs: string): void {
   const rel = path.relative(rootReal, candidateAbs);
   if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new SkillPilotError('PATH_ESCAPE', 'path resolves outside skill root');
+    throw new SkillingError('PATH_ESCAPE', 'path resolves outside skill root');
   }
 }
 
@@ -210,11 +210,11 @@ export function loadSkillBody(
 ): { meta: SkillFrontMatter; body: string } {
   const index = getSkillIndex(skillRoot, skillsMetaDir);
   if (!index.ok) {
-    throw new SkillPilotError('STORE_UNAVAILABLE', index.error);
+    throw new SkillingError('STORE_UNAVAILABLE', index.error);
   }
   const file = index.paths.get(skillId);
   if (!file) {
-    throw new SkillPilotError(
+    throw new SkillingError(
       'SKILL_NOT_FOUND',
       `Unknown skill_id: ${skillId}. Call the list tool for available skill ids.`,
     );

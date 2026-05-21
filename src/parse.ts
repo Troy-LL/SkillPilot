@@ -135,7 +135,7 @@ function metaFromFrontMatterRecord(
   };
 }
 
-/** Parse SKILL.md with ecosystem aliases (name/description) or strict SkillPilot front matter. */
+/** Parse SKILL.md with ecosystem aliases (name/description) or strict Skilling front matter. */
 export function parseSkillFile(
   rawUtf8: string,
   folderDerivedId: string,

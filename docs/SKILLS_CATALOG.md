@@ -1,6 +1,6 @@
-# Skill catalog — discover, install locally, route with SkillPilot
+# Skill catalog — discover, install locally, route with Skilling
 
-SkillPilot **lists / selects / loads** skills under **`SKILL_ROOT`**. For this repo, the **canonical** root is **`.agents/skills/`** — not the template tree under **`skills/`**.
+Skilling **lists / selects / loads** skills under **`SKILL_ROOT`**. For this repo, the **canonical** root is **`.agents/skills/`** — not the template tree under **`skills/`**.
 
 ## Pipeline (recommended)
 
@@ -14,11 +14,11 @@ find-skills  →  npx skills add (repo root, no -g)  →  .agents/skills/<id>/
 |------|------|------------------|
 | 1. Discover | Agent follows **find-skills**; `npx skills find <query>` or [skills.sh](https://skills.sh/) | — |
 | 2. Install **locally** | `npm run skills:add -- <pkg>` or `npx skills add <pkg> -y` **from repo root** (no `-g`) | `<repo>/.agents/skills/<id>/` |
-| 3. Overlay (SkillPilot) | Add or edit **`.agents/skills-meta/<id>.yaml`** | Tags, triggers, `inject_mode_default` — survives skill updates |
+| 3. Overlay (Skilling) | Add or edit **`.agents/skills-meta/<id>.yaml`** | Tags, triggers, `inject_mode_default` — survives skill updates |
 | 4. Route | MCP with `SKILL_ROOT` pointing at `.agents/skills` | Reads skills + merges overlays |
 | 5. Optional ingest | `npm run skills:import -- <id>` or MCP **`ingest`** | Copies to `<repo>/skills/` (legacy / smoke only) |
 
-## Commands (SkillPilot repo root)
+## Commands (Skilling repo root)
 
 PowerShell:
 
@@ -40,7 +40,7 @@ npm run skills:import -- mcp-builder
 Point **`env.SKILL_ROOT`** at **this repo’s `.agents/skills`** folder:
 
 ```json
-"env": { "SKILL_ROOT": "<REPO>/SkillPilot/.agents/skills" }
+"env": { "SKILL_ROOT": "<REPO>/Skilling/.agents/skills" }
 ```
 
 See **`docs/mcp-config.example.json`**.
@@ -50,11 +50,11 @@ See **`docs/mcp-config.example.json`**.
 | Skill id | Role |
 |----------|------|
 | **find-skills** | Discover and install ecosystem skills |
-| **com-skillpilot-orchestrator** | `begin_task` / `end_task` / `skill_plan` workflow |
+| **com-skilling-orchestrator** | `begin_task` / `end_task` / `skill_plan` workflow |
 | **mcp-builder**, **skill-creator**, **typescript-mcp-server-generator** | MCP and skill authoring (MCP-only — not general TypeScript scripts) |
 | **typescript-cli** | Node/TypeScript CLI tools and small scripts (not MCP servers) |
 | **frontend-design** | Distinctive web UI / React components |
-| **create-hook**, **create-rule** | Git hooks (create-hook) and Cursor rules (create-rule); use **com-skillpilot-orchestrator** for Cursor MCP lifecycle hooks |
+| **create-hook**, **create-rule** | Git hooks (create-hook) and Cursor rules (create-rule); use **com-skilling-orchestrator** for Cursor MCP lifecycle hooks |
 
 ## Routing accuracy
 
@@ -75,15 +75,15 @@ Tune routing without editing skill bodies via **`.agents/skills-meta/<id>.yaml`*
 
 Selector thresholds (env overrides):
 
-- **`SKILLPILOT_SELECT_MIN_CONFIDENCE`** — default `0.25` (minimum to return any skill)
-- **`SKILLPILOT_PLAN_MIN_CONFIDENCE`** — default `0.35` (minimum for `skill_plan` `skills_needed`)
+- **`SKILLING_SELECT_MIN_CONFIDENCE`** — default `0.25` (minimum to return any skill)
+- **`SKILLING_PLAN_MIN_CONFIDENCE`** — default `0.35` (minimum for `skill_plan` `skills_needed`)
 
 MCP-tagged skills require **mcp** or an exact MCP trigger in the query; otherwise their score is capped to avoid false positives on generic TypeScript prompts.
 
 ## Notes
 
-- **`.agents/skills-meta/`** holds SkillPilot routing metadata for ecosystem skills; commit these files in the repo.
-- **`com-skillpilot-orchestrator`** is first-party (local entry in `skills-lock.json`); not managed by `npx skills update`.
+- **`.agents/skills-meta/`** holds Skilling routing metadata for ecosystem skills; commit these files in the repo.
+- **`com-skilling-orchestrator`** is first-party (local entry in `skills-lock.json`); not managed by `npx skills update`.
 - Ecosystem front matter (`name` / `description`) is normalized to **`id`**, **`title`**, **`summary`**; quoted phrases in `description` may become **`triggers`** when omitted.
 - **`token_estimate`** is computed from the skill **body** when not set explicitly.
 - Folder name **must** match YAML **`id`**.

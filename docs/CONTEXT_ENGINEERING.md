@@ -1,6 +1,6 @@
-# Context engineering with SkillPilot
+# Context engineering with Skilling
 
-SkillPilot is built to push **inference-time** skill cost toward Skill0-style efficiency (filtered, small, evicted) without training a model. This guide is the practical ladder.
+Skilling is built to push **inference-time** skill cost toward Skill0-style efficiency (filtered, small, evicted) without training a model. This guide is the practical ladder.
 
 ## The cost ladder
 
@@ -36,7 +36,7 @@ Override anytime with explicit `inject_mode` on `begin_task` / `load`.
 
 ## Metadata overlays (ecosystem skills)
 
-Upstream skills under **`.agents/skills/<id>/SKILL.md`** are often updated by `npx skills add` / `npx skills update`. **Do not** patch their bodies for SkillPilot-specific fields.
+Upstream skills under **`.agents/skills/<id>/SKILL.md`** are often updated by `npx skills add` / `npx skills update`. **Do not** patch their bodies for Skilling-specific fields.
 
 Instead, add **`.agents/skills-meta/<id>.yaml`** (sibling of `skills/`):
 
@@ -67,17 +67,17 @@ inject_sections:
 - Keep **procedure** in clear `## Procedure` / `## When to use` headings for `sections` mode.
 - Set **`token_estimate`** honestly so `token_budget` filtering works.
 
-## What SkillPilot does not do (yet)
+## What Skilling does not do (yet)
 
 - **Δk helpfulness filtering** (Skill0 Dynamic Curriculum) — planned v2 via `skill_feedback`.
 - **Visual compression** of history — out of scope; use host-side summarization.
 - **Internalize skills into weights** — requires SkillZero-style training, not MCP.
 
-SkillPilot **does** collect the right habits for that path: plan-first, tiered load, shaped inject, cleanup.
+Skilling **does** collect the right habits for that path: plan-first, tiered load, shaped inject, cleanup.
 
 ## Config
 
-`skillpilot.config.json.example`:
+`Skilling.config.json.example`:
 
 ```json
 {
@@ -87,4 +87,4 @@ SkillPilot **does** collect the right habits for that path: plan-first, tiered l
 }
 ```
 
-Env: `SKILLPILOT_DEFAULT_INJECT_MODE=compact`
+Env: `SKILLING_DEFAULT_INJECT_MODE=compact`

@@ -17,11 +17,11 @@ describe('buildIndex', () => {
     if (!index.ok) return;
     assert.ok(index.skills.length >= 2);
     assert.ok(index.skills.some((s) => s.id === 'find-skills'));
-    assert.ok(index.skills.some((s) => s.id === 'com-skillpilot-orchestrator'));
+    assert.ok(index.skills.some((s) => s.id === 'com-skilling-orchestrator'));
   });
 
   it('fails on folder vs id mismatch', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-test-'));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-test-'));
     try {
       const dir = path.join(tmp, 'folder-a');
       fs.mkdirSync(dir, { recursive: true });
@@ -46,8 +46,8 @@ body
 
 describe('loadSkillBody', () => {
   it('loads a known skill', () => {
-    const { meta, body } = loadSkillBody(agentsSkills, 'com-skillpilot-orchestrator', agentsMeta);
-    assert.equal(meta.id, 'com-skillpilot-orchestrator');
+    const { meta, body } = loadSkillBody(agentsSkills, 'com-skilling-orchestrator', agentsMeta);
+    assert.equal(meta.id, 'com-skilling-orchestrator');
     assert.match(body, /begin_task/);
   });
 
@@ -61,7 +61,7 @@ describe('loadSkillBody', () => {
 
 describe('getSkillIndex cache', () => {
   it('reflects in-place SKILL.md edits without restart', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-cache-'));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-cache-'));
     try {
       const skillDir = path.join(tmp, 'alpha-skill');
       fs.mkdirSync(skillDir, { recursive: true });

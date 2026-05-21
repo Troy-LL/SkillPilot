@@ -1,8 +1,10 @@
-# Publishing SkillPilot
+# Publishing Skilling
 
-## npm (`skillpilot-mcp`)
+## npm (`skilling`)
 
-Package name: **`skillpilot-mcp`**. Binary: **`skillpilot-mcp`** → `scripts/run-mcp.mjs` (sets bundled `SKILL_ROOT` unless overridden).
+Package name: **`skilling`**. Binary: **`skilling`** → `scripts/run-mcp.mjs` (sets bundled `SKILL_ROOT` unless overridden).
+
+The legacy package [`skillpilot-mcp`](https://www.npmjs.com/package/skillpilot-mcp) can be deprecated after `skilling` is live; point users at `npx -y skilling@latest`.
 
 ### Verify tarball before publish
 
@@ -26,9 +28,9 @@ After publish, users install with the README deeplink or:
 ```json
 {
   "mcpServers": {
-    "skillpilot": {
+    "skilling": {
       "command": "npx",
-      "args": ["-y", "skillpilot-mcp@latest"],
+      "args": ["-y", "skilling@latest"],
       "env": { "SKILL_ROOT": "${workspaceFolder}/.agents/skills" }
     }
   }
@@ -47,50 +49,32 @@ This repo is packaged as a [Cursor plugin](https://cursor.com/docs/plugins): man
 
 1. Build the server:
 
-   ```bash
-   npm install
-   npm run build
-   ```
+```bash
+npm install && npm run build
+```
 
-2. Symlink into Cursor local plugins (adjust paths):
+2. In Cursor, add MCP from [`mcp.json`](../mcp.json) or run `node scripts/generate-mcp-deeplink.mjs` for a deeplink.
+3. Enable hooks from [`.cursor/hooks.json`](../.cursor/hooks.json) if testing autonomous routing.
 
-   ```bash
-   # macOS / Linux
-   ln -s "$(pwd)" ~/.cursor/plugins/local/skillpilot
+### Submit checklist
 
-   # Windows (junction — no admin on most setups)
-   $target = (Get-Location).Path
-   $link = "$env:USERPROFILE\.cursor\plugins\local\skillpilot"
-   New-Item -ItemType Directory -Force -Path (Split-Path $link) | Out-Null
-   if (Test-Path $link) { cmd /c "rmdir `"$link`"" }
-   cmd /c "mklink /J `"$link`" `"$target`""
-   ```
+- [ ] `package.json` version bumped
+- [ ] `.cursor-plugin/plugin.json` version aligned
+- [ ] `npm run test` green
+- [ ] `npm run pack:check` reviewed
+- [ ] README install section matches `mcp.json` / deeplink
+- [ ] Changelog or release notes for breaking renames (SkillPilot → Skilling, `.skillpilot/` → `.skilling/`)
 
-3. Restart Cursor or **Developer: Reload Window**.
+---
 
-4. Open a **different** workspace (not only this repo) and enable **skillpilot** MCP.
+## VS Code extension (`skilling-lifecycle`)
 
-5. Verify: `npm run smoke` and `npm run benchmark`.
+Optional companion extension under [`extension/`](../extension/). Not published to npm with the MCP server.
 
-**Hooks:** Commands in `hooks/hooks.json` are relative to the plugin install directory. If auto-begin fails in another workspace, set `SKILLPILOT_SERVER_ROOT` to your SkillPilot clone. MCP tools work without hooks.
+```bash
+cd extension
+npm install
+npm run compile
+```
 
-### Submit to Cursor Marketplace
-
-1. Ensure [NOTICE](../NOTICE), [LICENSE](../LICENSE), and README install instructions are on `main`.
-2. Open **[cursor.com/marketplace/publish](https://cursor.com/marketplace/publish)**.
-3. Submit repository URL: `https://github.com/Troy-LL/SkillPilot`
-4. Expect **manual review** (curated marketplace).
-
-### Checklist
-
-- [x] `.cursor-plugin/plugin.json` — manifest present
-- [x] `NOTICE` — third-party skill attribution
-- [x] Portable `mcp.json` (npx, no absolute paths)
-- [x] `npm test` and `npm run benchmark` pass
-- [ ] `npm publish` — run locally after `npm login`
-- [ ] Symlink test in non–SkillPilot workspace
-- [ ] Marketplace submission form completed
-
-## Community MCP listing
-
-For [cursor.directory](https://cursor.directory/), submit the public repo with the npx MCP snippet from [`mcp-config.example.json`](mcp-config.example.json).
+Package with `vsce package` when ready to publish to Open VSX / Marketplace.

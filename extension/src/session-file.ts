@@ -17,7 +17,7 @@ export type SessionFilePayload = {
 };
 
 export function sessionFilePath(repoRoot: string): string {
-  return path.join(path.resolve(repoRoot), '.skillpilot', 'session.json');
+  return path.join(path.resolve(repoRoot), '.skilling', 'session.json');
 }
 
 export function readSessionFile(repoRoot: string): SessionFilePayload | null {
@@ -41,7 +41,7 @@ export function isSessionFileActive(session: SessionFilePayload): boolean {
 
 /** Align with MCP: repo root = parent of skills/, or dirname(serverEntry). */
 export function resolveRepoRootForExtension(): string | undefined {
-  const config = vscode.workspace.getConfiguration('skillpilot');
+  const config = vscode.workspace.getConfiguration('skilling');
   const serverEntry = config.get<string>('serverEntry', '').trim();
   if (serverEntry) {
     const entryDir = path.dirname(path.resolve(serverEntry));

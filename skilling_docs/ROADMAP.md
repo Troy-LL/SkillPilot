@@ -1,4 +1,4 @@
-# SkillPilot — Roadmap
+# Skilling — Roadmap
 
 > This is a living document. Items are not promises — they are intent with reasoning. Priorities shift based on real usage and contributor interest.
 
@@ -6,7 +6,7 @@
 
 ## North Star
 
-SkillPilot should be the minimal, composable, open-source MCP server that lets any agent use the right skill at the right time, spending as few tokens as possible doing it. By the time a task ends, the context should be no heavier than when it started.
+Skilling should be the minimal, composable, open-source MCP server that lets any agent use the right skill at the right time, spending as few tokens as possible doing it. By the time a task ends, the context should be no heavier than when it started.
 
 ---
 
@@ -29,7 +29,7 @@ The core router is working. The goal for this phase is **correctness and stabili
 - [x] Body shaping pipeline (`shape-body.ts`, `MAX_INJECT_BYTES`)
 - [x] `ttl_hint` on inject / `begin_task`
 - [x] `skill_list` tag filtering
-- [x] Config file support (`skillpilot.config.json`, env)
+- [x] Config file support (`Skilling.config.json`, env)
 - [x] `health` tool
 - [x] Canonical skill root **`.agents/skills/`** documented
 - [x] Cursor extension for session-aware lifecycle hooks
@@ -37,7 +37,7 @@ The core router is working. The goal for this phase is **correctness and stabili
 - [x] CI via GitHub Actions
 
 ### In Progress
-- [x] npm package metadata as `skillpilot-mcp` (`files`, `prepare`, `.npmignore`) — run `npm publish` after `npm login`
+- [x] npm package metadata as `Skilling` (`files`, `prepare`, `.npmignore`) — run `npm publish` after `npm login`
 - [x] Contributing guide ([CONTRIBUTING.md](../CONTRIBUTING.md))
 - [ ] Example skill library polish
 
@@ -57,7 +57,7 @@ The core router is working. The goal for this phase is **correctness and stabili
 - Skill file format finalized with full front-matter schema.
 - Heuristic selector performs well on a library of 20–100 skills.
 - Comprehensive test coverage for all tools and failure modes.
-- Published to npm as `skillpilot-mcp`.
+- Published to npm as `Skilling`.
 - Contributing guide, skill authoring guide, and example skill library.
 
 **Non-goals for v1.0:**
@@ -73,17 +73,17 @@ The core router is working. The goal for this phase is **correctness and stabili
 **Theme: Easy to adopt. Easy to write skills. Easy to debug.**
 
 ### v1.1 — Skill Authoring Tooling
-- [ ] `skillpilot validate <path>` CLI command — lint a skill file against the schema
-- [ ] `skillpilot preview <skill-id>` — show what the shaped body looks like before injection
-- [ ] `skillpilot stats` — show token estimates and coverage metrics for a skill library
+- [ ] `Skilling validate <path>` CLI command — lint a skill file against the schema
+- [ ] `Skilling preview <skill-id>` — show what the shaped body looks like before injection
+- [ ] `Skilling stats` — show token estimates and coverage metrics for a skill library
 - [ ] Front-matter auto-completion schema for VS Code / Cursor (JSON Schema)
-- [ ] Skill template scaffold (`skillpilot new <skill-id>`)
+- [ ] Skill template scaffold (`Skilling new <skill-id>`)
 
 ### v1.2 — Observability
 - [ ] Structured JSON log output (currently mixed)
 - [ ] Per-skill usage counters persisted to a lightweight file store
 - [ ] `skill_list` response includes `last_used_at` and `use_count` for each skill
-- [ ] Debug mode: `SKILLPILOT_DEBUG=true` logs selection scoring details
+- [ ] Debug mode: `SKILLING_DEBUG=true` logs selection scoring details
 
 ### v1.3 — Multi-Root Support
 - [ ] Multiple skill roots (workspace-local + global), merged with precedence rules
@@ -99,16 +99,16 @@ The core router is working. The goal for this phase is **correctness and stabili
 ### Embedding-Based Selector
 - [ ] Local embedding model via `@xenova/transformers` (Apache 2.0, runs in-process)
 - [ ] Default model: `Xenova/all-MiniLM-L6-v2` — ~25 MB, no GPU required
-- [ ] Embeddings computed at startup for all Tier 1 summaries, cached to `.skillpilot-cache/`
+- [ ] Embeddings computed at startup for all Tier 1 summaries, cached to `.skilling-cache/`
 - [ ] Cosine similarity replaces keyword scoring when enabled
-- [ ] Opt-in via `SKILLPILOT_SELECTOR=embedding`
+- [ ] Opt-in via `SKILLING_SELECTOR=embedding`
 - [ ] Fallback to heuristic if model load fails
 
 ### LLM-Assisted Ranker
 - [ ] Configurable endpoint (default: `localhost:11434/v1` for Ollama)
 - [ ] Pass skill summaries + prompt to a local model, parse ranked output
 - [ ] Works with any OpenAI-compatible API (local or remote)
-- [ ] Opt-in via `SKILLPILOT_SELECTOR=llm`
+- [ ] Opt-in via `SKILLING_SELECTOR=llm`
 - [ ] Strict timeout to prevent blocking the MCP call
 
 ### Skill Plan Improvements (v2 selector)
@@ -131,12 +131,12 @@ The core router is working. The goal for this phase is **correctness and stabili
 
 ### v2.2 — Usage-Driven Trigger Discovery
 - [ ] When a skill is successfully used, extract the prompt that triggered it
-- [ ] Periodically suggest new trigger phrases to skill authors (reported via `skillpilot stats`)
+- [ ] Periodically suggest new trigger phrases to skill authors (reported via `Skilling stats`)
 - [ ] Opt-in: never modifies skill files automatically
 
 ### v2.3 — Skill Conflict Detection
 - [ ] Detect when two skills have highly overlapping tags/triggers
-- [ ] `skillpilot validate` warns on overlap during authoring
+- [ ] `Skilling validate` warns on overlap during authoring
 - [ ] `skill_select` warns on ambiguous match (multiple high-confidence candidates)
 
 ---
@@ -167,7 +167,7 @@ The core router is working. The goal for this phase is **correctness and stabili
 These are ideas worth tracking but not currently on a release timeline:
 
 **Skill internalization signals**  
-SkillPilot operates at inference time — it cannot train models. But it *can* collect data that would be useful for training a model that no longer needs runtime skill injection (the goal of Skill0). Logging which skills were helpful, in what context, with what outcome, creates a dataset for future offline training.
+Skilling operates at inference time — it cannot train models. But it *can* collect data that would be useful for training a model that no longer needs runtime skill injection (the goal of Skill0). Logging which skills were helpful, in what context, with what outcome, creates a dataset for future offline training.
 
 **Skill evolution pipeline**  
 An external tool (not part of the core router) could watch usage logs, identify skills that consistently fail, and propose updated bodies. The router remains read-only; evolution happens out-of-band.
@@ -182,7 +182,7 @@ When multiple agents in the same workspace share a skill library, synchronize wh
 
 ## How to Influence the Roadmap
 
-SkillPilot is open source. The most direct way to influence priorities:
+Skilling is open source. The most direct way to influence priorities:
 
 1. **Use it and report what breaks.** Bugs in the core always take priority over new features.
 2. **Write skills.** A rich skill library reveals gaps in the selection logic faster than any spec review.

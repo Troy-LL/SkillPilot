@@ -1,5 +1,5 @@
 /**
- * One-shot MCP cleanup for the SkillPilot extension.
+ * One-shot MCP cleanup for the Skilling extension.
  * Usage: node scripts/extension-cleanup.mjs <correlation_id> <dist/index.js> [skillRoot]
  */
 import path from 'node:path';
@@ -28,7 +28,7 @@ const transport = new StdioClientTransport({
   stderr: 'pipe',
 });
 
-const client = new Client({ name: 'skillpilot-extension-cleanup', version: '0.0.0' });
+const client = new Client({ name: 'Skilling-extension-cleanup', version: '0.0.0' });
 
 try {
   await client.connect(transport);

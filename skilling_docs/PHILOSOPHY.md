@@ -1,8 +1,8 @@
-# SkillPilot — Philosophy
+# Skilling — Philosophy
 
 > "A skill injected is a debt paid in tokens every step. A skill well-chosen is a force multiplier. A skill evicted on time is hygiene."
 
-This document captures the *why* behind SkillPilot's design choices. It is meant to be read before contributing, before making architectural decisions, and before adding new features. When two approaches seem equivalent on paper, the one that aligns with this philosophy wins.
+This document captures the *why* behind Skilling's design choices. It is meant to be read before contributing, before making architectural decisions, and before adding new features. When two approaches seem equivalent on paper, the one that aligns with this philosophy wins.
 
 ---
 
@@ -21,19 +21,19 @@ Agent skills exist to guide behavior during a task. They are transient scaffoldi
 
 Context windows are not free. Every token injected into a system prompt is a token that cannot be used for task history, user messages, or model reasoning. Research on skill-augmented agents (see [Skill0, arXiv:2604.02268](https://arxiv.org/abs/2604.02268)) shows that naïve full-skill injection can cost 2–5× more tokens per step than a filtered, summary-first approach — while actually *hurting* performance due to retrieval noise.
 
-SkillPilot treats token efficiency as a first-class design constraint, on par with correctness:
+Skilling treats token efficiency as a first-class design constraint, on par with correctness:
 - Selection uses summaries (≤ 60 tokens per skill), never full bodies.
 - Full bodies are loaded only after a skill has been selected.
 - Token budgets are configurable and enforced before injection.
 - Skills that do not match the current task are silently dropped — never returned as a "safe default dump."
 
-**The goal:** an agent using SkillPilot should spend *fewer* total tokens per task than an agent doing manual skill management, while achieving better task alignment.
+**The goal:** an agent using Skilling should spend *fewer* total tokens per task than an agent doing manual skill management, while achieving better task alignment.
 
 ---
 
 ## 3. Open Source, No Exceptions
 
-SkillPilot is built to be used by anyone, anywhere, without accounts, API keys, or proprietary binaries. This is a hard constraint, not a preference:
+Skilling is built to be used by anyone, anywhere, without accounts, API keys, or proprietary binaries. This is a hard constraint, not a preference:
 
 - Every runtime dependency must have an open license (MIT, Apache 2.0, BSD, or equivalent).
 - The core router must work with zero network calls — local filesystem is the only mandatory dependency beyond MCP transport.
@@ -62,7 +62,7 @@ When caching is added for performance, it must be:
 
 ## 5. Minimal Surface, Maximal Composability
 
-SkillPilot exposes a small number of well-defined tools. It does not try to be a skill editor, a skill evolution system, a training pipeline, or a memory store. Those are valuable problems, but they belong in separate, composable tools.
+Skilling exposes a small number of well-defined tools. It does not try to be a skill editor, a skill evolution system, a training pipeline, or a memory store. Those are valuable problems, but they belong in separate, composable tools.
 
 The MCP surface is deliberately narrow:
 - `skill_list` — discovery
@@ -73,7 +73,7 @@ The MCP surface is deliberately narrow:
 
 Any feature that cannot be expressed through these five operations (or a considered extension of them) should be a separate MCP server or a separate tool that calls these.
 
-This philosophy makes SkillPilot easy to audit, easy to test, and easy to integrate. It also means that when something goes wrong, the scope of the problem is small.
+This philosophy makes Skilling easy to audit, easy to test, and easy to integrate. It also means that when something goes wrong, the scope of the problem is small.
 
 ---
 
@@ -81,7 +81,7 @@ This philosophy makes SkillPilot easy to audit, easy to test, and easy to integr
 
 One of the most common sources of mid-task context thrash is discovering — halfway through a complex task — that a different skill was needed, or that the task requires multiple skills in a specific order. This forces re-planning inside an already-loaded context, wasting both tokens and coherence.
 
-SkillPilot's `skill_plan` tool exists specifically to front-load this reasoning. Before injecting any skill body, the agent can ask: *"What skills will I need for this goal, and in what order?"* The planner reads only Tier 1 summaries (cheap) and returns a structured plan. The agent can then make an informed decision about scope before the expensive Tier 2 loads happen.
+Skilling's `skill_plan` tool exists specifically to front-load this reasoning. Before injecting any skill body, the agent can ask: *"What skills will I need for this goal, and in what order?"* The planner reads only Tier 1 summaries (cheap) and returns a structured plan. The agent can then make an informed decision about scope before the expensive Tier 2 loads happen.
 
 **This is not mandatory.** For simple tasks, `skill_select` + `skill_inject` is the right path. But for complex multi-step work, planning first is almost always worth the upfront cost.
 
@@ -112,7 +112,7 @@ Availability failures (skill not found, selector returns no match, store tempora
 - Skill missing after select → structured error, not a partial injection.
 - Store unreadable → `skill_list` errors clearly; `skill_select` returns `unavailable`.
 
-The agent calling SkillPilot should always be able to proceed — either with a skill or with a clear signal that no skill was found. It should never receive a response that silently poisons its context.
+The agent calling Skilling should always be able to proceed — either with a skill or with a clear signal that no skill was found. It should never receive a response that silently poisons its context.
 
 ---
 

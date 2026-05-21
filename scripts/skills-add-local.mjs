@@ -1,7 +1,7 @@
 /**
  * Install a skill into THIS repo’s .agents/skills (not global -g) and import into skills/.
  *
- * Usage (from SkillPilot repo root, after npm run build):
+ * Usage (from Skilling repo root, after npm run build):
  *   node scripts/skills-add-local.mjs vercel-labs/skills@find-skills
  *   node scripts/skills-add-local.mjs vercel-labs/skills@find-skills find-skills
  *

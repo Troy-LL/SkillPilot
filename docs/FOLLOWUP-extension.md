@@ -1,4 +1,4 @@
-# SkillPilot editor extension (TTL / lifecycle)
+# Skilling editor extension (TTL / lifecycle)
 
 > **Sprint C:** Initial implementation lives in **`extension/`** — see **`docs/EXTENSION.md`**.
 
@@ -11,7 +11,7 @@ The MCP server returns structured hints (`ttl_ms`, `correlation_id`) on **`load`
 ## Proposed extension (sketch)
 
 1. **VS Code / Cursor extension** that:
-   - Subscribes to MCP tool results from the SkillPilot server (or wraps calls if the host exposes hooks).
+   - Subscribes to MCP tool results from the Skilling server (or wraps calls if the host exposes hooks).
    - When `load` returns, starts a **timer** using `ttl_ms` (server hint; client may clamp).
    - Shows a **non-blocking status** or notification: “Skill `x` active — auto-clear in N min.”
    - On expiry, prompts or automatically clears the **local** ephemeral system fragment / scratch buffer the extension manages (without mutating unrelated host state).

@@ -1,5 +1,5 @@
 /**
- * Spawns the SkillPilot MCP server over stdio and exercises lifecycle tools.
+ * Spawns the Skilling MCP server over stdio and exercises lifecycle tools.
  * Run from repo root after `npm run build`: `node scripts/mcp-smoke.mjs`
  */
 import fs from 'node:fs';
@@ -12,7 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
 const entry = path.join(repoRoot, 'dist', 'index.js');
 const skillRoot = path.join(repoRoot, '.agents', 'skills');
-const sessionFile = path.join(repoRoot, '.skillpilot', 'session.json');
+const sessionFile = path.join(repoRoot, '.skilling', 'session.json');
 
 const transport = new StdioClientTransport({
   command: process.execPath,
@@ -21,7 +21,7 @@ const transport = new StdioClientTransport({
   stderr: 'pipe',
 });
 
-const client = new Client({ name: 'skillpilot-smoke', version: '0.0.0' });
+const client = new Client({ name: 'Skilling-smoke', version: '0.0.0' });
 
 try {
   await client.connect(transport);
@@ -48,7 +48,7 @@ try {
   const planRes = await client.callTool({
     name: 'skill_plan',
     arguments: {
-      goal: 'Implement skillpilot token compression and skill_plan tool',
+      goal: 'Implement Skilling token compression and skill_plan tool',
       max_skills: 3,
     },
   });

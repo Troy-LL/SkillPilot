@@ -4,7 +4,7 @@ import type { SkillFrontMatter } from '../parse.js';
 import { planFromCandidates, selectFromCandidates } from './heuristic.js';
 
 const review: SkillFrontMatter = {
-  id: 'com-skillpilot-code-review',
+  id: 'com-skilling-code-review',
   title: 'Lightweight code review',
   summary: 'Spot correctness, edge cases, and test gaps.',
   tags: ['review', 'quality', 'security'],
@@ -13,7 +13,7 @@ const review: SkillFrontMatter = {
 };
 
 const prBabysit: SkillFrontMatter = {
-  id: 'com-skillpilot-pr-babysit',
+  id: 'com-skilling-pr-babysit',
   title: 'PR babysitting loop',
   summary: 'Keep a PR merge-ready by triaging review comments and fixing CI.',
   tags: ['pr', 'merge', 'ci'],
@@ -34,11 +34,11 @@ const findSkills: SkillFrontMatter = {
 };
 
 const orchestrator: SkillFrontMatter = {
-  id: 'com-skillpilot-orchestrator',
-  title: 'SkillPilot task orchestration',
+  id: 'com-skilling-orchestrator',
+  title: 'Skilling task orchestration',
   summary: 'Use MCP begin_task and end_task per dev stage.',
-  tags: ['skillpilot', 'workflow'],
-  triggers: ['begin task', 'skillpilot', 'end task'],
+  tags: ['skilling', 'workflow'],
+  triggers: ['begin task', 'skilling', 'end task'],
   token_estimate: 800,
   inject: true,
 };
@@ -110,7 +110,7 @@ describe('selectFromCandidates', () => {
     const r = selectFromCandidates(candidates, {
       prompt: 'Please do a code review of this diff and find security issues',
     });
-    assert.equal(r.skill_id, 'com-skillpilot-code-review');
+    assert.equal(r.skill_id, 'com-skilling-code-review');
     assert.ok(r.confidence > 0);
   });
 

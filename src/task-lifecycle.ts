@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import type { SkillPilotConfig } from './config.js';
+import type { SkillingConfig } from './config.js';
 import { CorrelationRegistry } from './correlation-registry.js';
 import { DEFAULT_TTL_MS, LOW_CONFIDENCE_THRESHOLD, MAX_SELECT_INPUT_CHARS } from './constants.js';
-import { SkillPilotError } from './errors.js';
+import { SkillingError } from './errors.js';
 import { logToolOk } from './observability.js';
 import type { SkillFrontMatter } from './parse.js';
 import { resolveRepoRoot } from './import-skill.js';
@@ -101,7 +101,7 @@ export function validateSkillIdForLoad(skill_id: string): string | null {
   return null;
 }
 
-function ttlMsFromMeta(meta: { ttl_seconds?: number }, config: SkillPilotConfig): number {
+function ttlMsFromMeta(meta: { ttl_seconds?: number }, config: SkillingConfig): number {
   if (meta.ttl_seconds !== undefined && meta.ttl_seconds > 0) {
     return meta.ttl_seconds * 1000;
   }
@@ -111,11 +111,11 @@ function ttlMsFromMeta(meta: { ttl_seconds?: number }, config: SkillPilotConfig)
 function loadAndShapeSkill(
   skillRoot: string,
   skillId: string,
-  config: SkillPilotConfig,
+  config: SkillingConfig,
   options?: { inject_mode?: InjectMode; token_budget?: number },
 ): { meta: SkillFrontMatter; shaped: ShapeBodyResult } {
   const err = validateSkillIdForLoad(skillId);
-  if (err) throw new SkillPilotError('VALIDATION_ERROR', err);
+  if (err) throw new SkillingError('VALIDATION_ERROR', err);
 
   const { meta, body: rawBody } = loadSkillBody(skillRoot, skillId, config.skillsMetaDir);
   const mode = resolveInjectMode(
@@ -140,7 +140,7 @@ function loadAndShapeSkill(
 function readShapedSkillBody(
   skillRoot: string,
   skillId: string,
-  config: SkillPilotConfig,
+  config: SkillingConfig,
   options?: { inject_mode?: InjectMode; token_budget?: number },
 ): string {
   return loadAndShapeSkill(skillRoot, skillId, config, options).shaped.body;
@@ -150,7 +150,7 @@ function resolveSessionBody(
   skillRoot: string,
   repoRoot: string,
   session: SkillSession,
-  config: SkillPilotConfig,
+  config: SkillingConfig,
 ): string {
   const fromBridge = readActiveBody(repoRoot, session.skill_id);
   if (fromBridge !== null) return fromBridge;
@@ -168,7 +168,7 @@ export function getCorrelationRegistrySize(): number {
 export function loadSkillEpisode(
   skillRoot: string,
   skillId: string,
-  config: SkillPilotConfig,
+  config: SkillingConfig,
   correlationId?: string,
   options?: { inject_mode?: InjectMode; token_budget?: number },
 ): LoadEpisodeResult {
@@ -219,18 +219,18 @@ function shapeBeginTaskResult(
 export function beginTask(
   skillRoot: string,
   repoRoot: string,
-  config: SkillPilotConfig,
+  config: SkillingConfig,
   input: BeginTaskInput,
 ): BeginTaskResult {
   const trimmedPrompt = input.prompt.trim();
   if (!trimmedPrompt && !(input.goal?.trim())) {
-    throw new SkillPilotError('VALIDATION_ERROR', 'begin_task requires a non-empty prompt or goal.');
+    throw new SkillingError('VALIDATION_ERROR', 'begin_task requires a non-empty prompt or goal.');
   }
   if (
     input.prompt.length > MAX_SELECT_INPUT_CHARS ||
     (input.goal?.length ?? 0) > MAX_SELECT_INPUT_CHARS
   ) {
-    throw new SkillPilotError(
+    throw new SkillingError(
       'VALIDATION_ERROR',
       `prompt and goal must each be at most ${MAX_SELECT_INPUT_CHARS} characters.`,
     );
@@ -260,7 +260,7 @@ export function beginTask(
 
   if (!skillId) {
     const index = getSkillIndex(skillRoot, config.skillsMetaDir);
-    if (!index.ok) throw new SkillPilotError('STORE_UNAVAILABLE', formatIndexError(index));
+    if (!index.ok) throw new SkillingError('STORE_UNAVAILABLE', formatIndexError(index));
     const result = selector.select([...index.metas.values()], {
       prompt: trimmedPrompt || input.goal!.trim(),
       goal: input.goal?.trim(),
@@ -270,7 +270,7 @@ export function beginTask(
       token_budget: input.token_budget ?? config.defaultTokenBudget,
     });
     if (!result.skill_id) {
-      throw new SkillPilotError(
+      throw new SkillingError(
         'VALIDATION_ERROR',
         result.rationale +
           (result.warnings?.length ? ` warnings: ${result.warnings.join(', ')}` : ''),
@@ -280,7 +280,7 @@ export function beginTask(
       result.confidence < (config.planMinConfidence ?? LOW_CONFIDENCE_THRESHOLD) &&
       result.warnings?.includes('low_confidence')
     ) {
-      throw new SkillPilotError(
+      throw new SkillingError(
         'VALIDATION_ERROR',
         `No strong skill match (confidence ${result.confidence}). Proceed without skill injection, call find-skills to discover a skill, or pass an explicit skill_id.`,
       );
@@ -289,7 +289,7 @@ export function beginTask(
     selectExtras = result;
   } else {
     const err = validateSkillIdForLoad(skillId);
-    if (err) throw new SkillPilotError('VALIDATION_ERROR', err);
+    if (err) throw new SkillingError('VALIDATION_ERROR', err);
   }
 
   const episode = loadSkillEpisode(skillRoot, skillId, config, undefined, {
@@ -337,14 +337,14 @@ export function endTask(
   const session = readSession(repoRoot);
   const passedId = correlation_id?.trim();
   if (session && passedId && passedId !== session.correlation_id) {
-    throw new SkillPilotError(
+    throw new SkillingError(
       'VALIDATION_ERROR',
       'correlation_id does not match the active session. Omit correlation_id or pass the session correlation_id.',
     );
   }
   const id = passedId || session?.correlation_id;
   if (!id) {
-    throw new SkillPilotError(
+    throw new SkillingError(
       'VALIDATION_ERROR',
       'No active session. Call begin_task first or pass correlation_id from the load response.',
     );
@@ -357,7 +357,7 @@ export function endTask(
 export function getSession(
   skillRoot: string,
   repoRoot: string,
-  config: SkillPilotConfig,
+  config: SkillingConfig,
   options?: GetSessionOptions,
 ): GetSessionResult {
   const session = readSession(repoRoot);

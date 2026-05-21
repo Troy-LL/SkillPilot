@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { SkillPilotError } from './errors.js';
+import { SkillingError } from './errors.js';
 import { parseSkillMarkdown } from './parse.js';
 import type { SkillFrontMatter } from './parse.js';
 import {
@@ -49,7 +49,7 @@ function normalizeId(candidate: string, folder: string): string {
   return slug;
 }
 
-/** Map ecosystem front matter (name/description) into SkillPilot required fields. */
+/** Map ecosystem front matter (name/description) into Skilling required fields. */
 function buildFrontMatterBlock(meta: SkillFrontMatter, body: string, source?: string): string {
   const lines = ['---', `id: ${meta.id}`, `title: ${JSON.stringify(meta.title)}`];
   lines.push(`summary: ${JSON.stringify(meta.summary)}`);
@@ -145,16 +145,16 @@ export function resolveRepoRoot(skillRoot: string, repoRootArg?: string): string
 export function validateAgentsFolder(agentsFolder: string): string {
   const trimmed = agentsFolder.trim();
   if (!trimmed) {
-    throw new SkillPilotError('VALIDATION_ERROR', 'agents_folder must be a non-empty skill folder name.');
+    throw new SkillingError('VALIDATION_ERROR', 'agents_folder must be a non-empty skill folder name.');
   }
   if (trimmed.includes('..') || trimmed.includes('/') || trimmed.includes('\\')) {
-    throw new SkillPilotError(
+    throw new SkillingError(
       'VALIDATION_ERROR',
       'agents_folder must not contain path segments.',
     );
   }
   if (!isValidSkillId(trimmed)) {
-    throw new SkillPilotError(
+    throw new SkillingError(
       'VALIDATION_ERROR',
       `Invalid agents_folder (must match skill-rules §2): ${trimmed}`,
     );
@@ -192,7 +192,7 @@ export function assertImportSourceAllowed(
 ): string {
   const sourceAbs = path.resolve(sourceSkillMd);
   if (!fs.existsSync(sourceAbs)) {
-    throw new SkillPilotError('VALIDATION_ERROR', `Source not found: ${sourceAbs}`);
+    throw new SkillingError('VALIDATION_ERROR', `Source not found: ${sourceAbs}`);
   }
   const sourceReal = fs.realpathSync.native(sourceAbs);
   const allowedRoots: string[] = [];
@@ -218,7 +218,7 @@ export function assertImportSourceAllowed(
       /* try next root */
     }
   }
-  throw new SkillPilotError(
+  throw new SkillingError(
     'PATH_ESCAPE',
     'Import source must be under SKILL_ROOT or .agents/skills',
   );
@@ -232,7 +232,7 @@ export function importSkillFromPath(
   const sourceAbs = assertImportSourceAllowed(sourceSkillMd, skillRoot, options.repo_root);
   const folderName = path.basename(path.dirname(sourceAbs));
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(folderName)) {
-    throw new SkillPilotError(
+    throw new SkillingError(
       'VALIDATION_ERROR',
       `Source folder name must match skill-rules §2: ${folderName}`,
     );

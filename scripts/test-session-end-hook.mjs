@@ -9,13 +9,13 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const hookScript = path.join(repoRoot, 'hooks', 'skillpilot-session-end.mjs');
-const sessionFile = path.join(repoRoot, '.skillpilot', 'session.json');
-const bodyFile = path.join(repoRoot, '.skillpilot', 'active-body.md');
+const hookScript = path.join(repoRoot, 'hooks', 'Skilling-session-end.mjs');
+const sessionFile = path.join(repoRoot, '.skilling', 'session.json');
+const bodyFile = path.join(repoRoot, '.skilling', 'active-body.md');
 
 const fakeSession = {
   version: 1,
-  skill_id: 'com-skillpilot-orchestrator',
+  skill_id: 'com-skilling-orchestrator',
   correlation_id: '00000000-0000-4000-8000-000000000099',
   ttl_ms: 300000,
   started_at: new Date().toISOString(),

@@ -1,6 +1,6 @@
-# SkillPilot — Token Compression Strategy
+# Skilling — Token Compression Strategy
 
-> This document explains *why* token cost matters for skill-augmented agents, *what* strategies SkillPilot uses to reduce it, and *how* each strategy maps to the codebase. It also draws directly from research in this space to ground the decisions.
+> This document explains *why* token cost matters for skill-augmented agents, *what* strategies Skilling uses to reduce it, and *how* each strategy maps to the codebase. It also draws directly from research in this space to ground the decisions.
 
 ---
 
@@ -19,7 +19,7 @@ The problem has three distinct components:
 2. **Accumulation** — Skills injected early stay in context through later steps where they no longer apply.
 3. **Full-body loading** — Using the entire skill body for selection wastes tokens; only a small fraction is needed to decide *whether* a skill applies.
 
-SkillPilot addresses all three.
+Skilling addresses all three.
 
 ---
 
@@ -27,7 +27,7 @@ SkillPilot addresses all three.
 
 The most important optimization. The core insight: **you should never read a skill body just to decide if the skill is relevant.**
 
-SkillPilot structures each skill into three tiers:
+Skilling structures each skill into three tiers:
 
 ```
 Tier 0 — Index entry     ~5 tokens     { id, title }
@@ -78,11 +78,11 @@ This lets the calling agent communicate its context constraints explicitly, rath
 
 ## Strategy 4: Eviction and TTL
 
-An injected skill that is never evicted keeps costing tokens for the lifetime of the conversation. SkillPilot makes eviction a first-class operation (`skill_cleanup`) and returns a `ttl_hint` with every inject response.
+An injected skill that is never evicted keeps costing tokens for the lifetime of the conversation. Skilling makes eviction a first-class operation (`skill_cleanup`) and returns a `ttl_hint` with every inject response.
 
 **TTL hint:** The skill front matter can set `ttl_seconds`. This is a *suggestion* to the client — the client is responsible for eviction, the server does not force it. But providing the hint makes it easy for well-behaved clients to implement auto-cleanup.
 
-**Session cleanup hooks:** SkillPilot integrates with Cursor's session end hooks (`skillpilot-session-end.mjs`) to ensure cleanup happens even when the agent forgets to call it explicitly.
+**Session cleanup hooks:** Skilling integrates with Cursor's session end hooks (`Skilling-session-end.mjs`) to ensure cleanup happens even when the agent forgets to call it explicitly.
 
 **Design principle (from PHILOSOPHY.md):** Skills are scaffolding. Once the task is done, the scaffolding must come down.
 
@@ -145,7 +145,7 @@ Inspired by Skill0's **Dynamic Curriculum**, a more advanced selector could trac
 
 Skills where `Δk ≤ 0` provide no benefit and should be excluded from selection even if they match tags. This requires feedback from the agent on task outcomes — something not available in the basic v1 request/response model.
 
-**How SkillPilot could implement this:**
+**How Skilling could implement this:**
 - An optional `skill_feedback` tool that accepts `{ correlation_id, success: boolean }`.
 - The server accumulates success/failure pairs per skill and computes rolling `Δk` estimates.
 - The selector uses `Δk` as a filter gate before confidence scoring.
@@ -169,7 +169,7 @@ This is a v2+ feature. It requires a lightweight persistence layer (a JSON file 
 | Approach | Selection cost | Per-inject cost | Ongoing step cost |
 |---|---|---|---|
 | Naïve (full bodies for selection) | 50,000–100,000 tokens | — | Full skill body every step |
-| SkillPilot (tiered) | 3,000 tokens | 200–2000 tokens once | 0 after cleanup |
+| Skilling (tiered) | 3,000 tokens | 200–2000 tokens once | 0 after cleanup |
 
 ---
 
@@ -195,6 +195,6 @@ Skills that fail the above checklist cost more tokens *and* perform worse due to
 - Skill0: In-Context Agentic Reinforcement Learning for Skill Internalization — arXiv:2604.02268  
   Key findings adopted: tiered manifest concept, helpfulness filtering, budget-limited selection, the finding that retrieval noise hurts more than missing skills.
 - AgentOCR: Reimagining Agent History via Optical Self-Compression — arXiv:2601.04786  
-  Context compression via visual encoding (not directly applicable to SkillPilot's text-based approach, but informs the principle that history compression is tractable).
+  Context compression via visual encoding (not directly applicable to Skilling's text-based approach, but informs the principle that history compression is tractable).
 - Lost in the Middle: How Language Models Use Long Contexts — Liu et al., 2024  
   Key finding: information in the middle of long contexts is systematically underused. Skills injected into already-long contexts may not be used at all — reinforcing the case for lean, targeted injection.

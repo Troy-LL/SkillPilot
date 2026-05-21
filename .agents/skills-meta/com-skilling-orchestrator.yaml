@@ -1,6 +1,6 @@
 triggers:
   - begin task
-  - skillpilot
+  - skilling
   - end task
   - skill plan
   - create a cursor hook
@@ -8,4 +8,4 @@ triggers:
   - session start
   - beforeSubmitPrompt
   - auto-load context
-  - skillpilot task
+  - skilling task

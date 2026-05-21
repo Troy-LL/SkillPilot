@@ -1,4 +1,4 @@
-export const SKILLPILOT_ERROR_CODES = [
+export const SKILLING_ERROR_CODES = [
   'STORE_UNAVAILABLE',
   'SKILL_NOT_FOUND',
   'BODY_TOO_LARGE',
@@ -9,20 +9,20 @@ export const SKILLPILOT_ERROR_CODES = [
   'VALIDATION_ERROR',
 ] as const;
 
-export type SkillPilotErrorCode = (typeof SKILLPILOT_ERROR_CODES)[number];
+export type SkillingErrorCode = (typeof SKILLING_ERROR_CODES)[number];
 
-export class SkillPilotError extends Error {
-  readonly code: SkillPilotErrorCode;
+export class SkillingError extends Error {
+  readonly code: SkillingErrorCode;
 
-  constructor(code: SkillPilotErrorCode, message: string) {
+  constructor(code: SkillingErrorCode, message: string) {
     super(message);
-    this.name = 'SkillPilotError';
+    this.name = 'SkillingError';
     this.code = code;
   }
 }
 
-export function errorPayload(code: SkillPilotErrorCode, message: string): {
-  code: SkillPilotErrorCode;
+export function errorPayload(code: SkillingErrorCode, message: string): {
+  code: SkillingErrorCode;
   message: string;
 } {
   return { code, message };

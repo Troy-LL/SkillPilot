@@ -1,7 +1,7 @@
-# SkillPilot — Technical Specification
+# Skilling — Technical Specification
 
 > Version: draft-1 | Status: living document  
-> This spec governs what SkillPilot must do. `architecture.md` governs how it is structured. `PHILOSOPHY.md` governs why choices are made.
+> This spec governs what Skilling must do. `architecture.md` governs how it is structured. `PHILOSOPHY.md` governs why choices are made.
 
 ---
 
@@ -363,7 +363,7 @@ interface SkillSelector {
 | `embedding` | Local cosine similarity via `@xenova/transformers` | `@xenova/transformers` (Apache 2.0) |
 | `llm` | Pass summaries + prompt to a configurable LLM endpoint, parse ranked result | HTTP client only |
 
-**Strategy selection at startup:** Set via `SKILLPILOT_SELECTOR` env var or config file. Default: `heuristic`.
+**Strategy selection at startup:** Set via `SKILLING_SELECTOR` env var or config file. Default: `heuristic`.
 
 **Heuristic scoring formula:**
 ```
@@ -383,8 +383,8 @@ Normalized to [0, 1]. Skills with `score < 0.1` are excluded from results.
 - `MAX_SKILL_BODY_BYTES = 32768` (32 KB) — files larger than this are rejected at load time.
 
 **Soft limits (configurable via env or config):**
-- `SKILLPILOT_MAX_INJECT_BYTES` — default `8192` (8 KB). Bodies truncated with a warning if exceeded after shaping.
-- `SKILLPILOT_DEFAULT_TOKEN_BUDGET` — default `2048`. Applied to `skill_select` when caller does not specify `token_budget`.
+- `SKILLING_MAX_INJECT_BYTES` — default `8192` (8 KB). Bodies truncated with a warning if exceeded after shaping.
+- `SKILLING_DEFAULT_TOKEN_BUDGET` — default `2048`. Applied to `skill_select` when caller does not specify `token_budget`.
 
 **Budget enforcement in `skill_select`:**
 1. Compute `token_estimate` for each candidate (from front matter or auto-computed).
@@ -402,7 +402,7 @@ Normalized to [0, 1]. Skills with `score < 0.1` are excluded from results.
 
 Resolved in priority order: environment variables > config file > defaults.
 
-**Config file location:** `skillpilot.config.json` in the working directory, or path set by `SKILLPILOT_CONFIG`.
+**Config file location:** `Skilling.config.json` in the working directory, or path set by `SKILLING_CONFIG`.
 
 ```json
 {
@@ -417,7 +417,7 @@ Resolved in priority order: environment variables > config file > defaults.
   },
   "embedding": {
     "model": "Xenova/all-MiniLM-L6-v2",
-    "cacheDir": ".skillpilot-cache"
+    "cacheDir": ".skilling-cache"
   },
   "llm": {
     "baseUrl": "http://localhost:11434/v1",
@@ -431,12 +431,12 @@ Resolved in priority order: environment variables > config file > defaults.
 
 | Env var | Config key | Default |
 |---|---|---|
-| `SKILLPILOT_SKILLS_ROOT` | `skillsRoot` | `./skills` |
-| `SKILLPILOT_SELECTOR` | `selector` | `heuristic` |
-| `SKILLPILOT_MAX_INJECT_BYTES` | `maxInjectBytes` | `8192` |
-| `SKILLPILOT_DEFAULT_TOKEN_BUDGET` | `defaultTokenBudget` | `2048` |
-| `SKILLPILOT_TTL_SECONDS` | `ttlSeconds` | `1800` |
-| `SKILLPILOT_LOG_LEVEL` | `log.level` | `info` |
+| `SKILLING_SKILLS_ROOT` | `skillsRoot` | `./skills` |
+| `SKILLING_SELECTOR` | `selector` | `heuristic` |
+| `SKILLING_MAX_INJECT_BYTES` | `maxInjectBytes` | `8192` |
+| `SKILLING_DEFAULT_TOKEN_BUDGET` | `defaultTokenBudget` | `2048` |
+| `SKILLING_TTL_SECONDS` | `ttlSeconds` | `1800` |
+| `SKILLING_LOG_LEVEL` | `log.level` | `info` |
 
 ---
 
@@ -474,7 +474,7 @@ All errors returned as MCP error objects with a `code` field (string) and `messa
 ```
 
 **Never log:**
-- Full prompt or goal strings (unless `SKILLPILOT_LOG_PROMPTS=true` is explicitly set).
+- Full prompt or goal strings (unless `SKILLING_LOG_PROMPTS=true` is explicitly set).
 - Skill bodies.
 - User file contents.
 

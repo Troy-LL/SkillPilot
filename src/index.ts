@@ -15,12 +15,12 @@ function parseArgs(argv: string[]): { skillRoot?: string } {
       continue;
     }
     if (a === '--help' || a === '-h') {
-      process.stdout.write(`SkillPilot MCP (stdio)
+      process.stdout.write(`Skilling MCP (stdio)
 
 Environment:
   SKILL_ROOT              Directory of skill folders (default: ./.agents/skills from cwd)
-  SKILLPILOT_SKILLS_ROOT  Same as SKILL_ROOT
-  SKILLPILOT_CONFIG       Path to skillpilot.config.json
+  SKILLING_SKILLS_ROOT  Same as SKILL_ROOT
+  SKILLING_CONFIG       Path to Skilling.config.json
 
 Arguments:
   --skill-root <path>   Override SKILL_ROOT

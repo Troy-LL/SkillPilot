@@ -1,4 +1,4 @@
-# MCP testing (SkillPilot)
+# MCP testing (Skilling)
 
 ## Automated
 

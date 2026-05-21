@@ -2,9 +2,9 @@ import path from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import * as z from 'zod/v4';
-import type { SkillPilotConfig } from './config.js';
+import type { SkillingConfig } from './config.js';
 import { MAX_SELECT_INPUT_CHARS } from './constants.js';
-import { SkillPilotError, errorPayload, type SkillPilotErrorCode } from './errors.js';
+import { SkillingError, errorPayload, type SkillingErrorCode } from './errors.js';
 import { importSkillFromAgents, resolveRepoRoot } from './import-skill.js';
 import { logPromptSnippet, logToolError, logToolOk } from './observability.js';
 import { PACKAGE_VERSION } from './package-version.js';
@@ -23,7 +23,7 @@ import { requireNonEmptyTrimmed } from './validate.js';
 
 type ToolResult = ReturnType<typeof toolOk>;
 
-function toolError(code: SkillPilotErrorCode, message: string) {
+function toolError(code: SkillingErrorCode, message: string) {
   const payload = errorPayload(code, message);
   return {
     isError: true as const,
@@ -40,7 +40,7 @@ function toolOk(payload: Record<string, unknown>) {
 }
 
 function handleError(tool: string, e: unknown) {
-  if (e instanceof SkillPilotError) {
+  if (e instanceof SkillingError) {
     logToolError(tool, e.code, { message: e.message });
     return toolError(e.code, e.message);
   }
@@ -61,7 +61,7 @@ const selectInputSchema = {
 
 async function runSelect(
   rootDisplay: string,
-  config: SkillPilotConfig,
+  config: SkillingConfig,
   input: z.infer<z.ZodObject<typeof selectInputSchema>>,
 ): Promise<ToolResult> {
   const start = Date.now();
@@ -94,7 +94,7 @@ async function runSelect(
 
 async function runList(
   rootDisplay: string,
-  config: SkillPilotConfig,
+  config: SkillingConfig,
   tags?: string[],
 ): Promise<ToolResult> {
   const index = getSkillIndex(rootDisplay, config.skillsMetaDir);
@@ -110,7 +110,7 @@ async function runList(
 
 async function runLoad(
   rootDisplay: string,
-  config: SkillPilotConfig,
+  config: SkillingConfig,
   skill_id: string,
   correlation_id?: string,
   inject_mode?: 'full' | 'summary' | 'compact' | 'sections',
@@ -130,14 +130,14 @@ async function runLoad(
   }
 }
 
-export function createSkillPilotServer(skillRoot: string, config: SkillPilotConfig): McpServer {
+export function createSkillingServer(skillRoot: string, config: SkillingConfig): McpServer {
   const rootDisplay = path.resolve(skillRoot);
   const repoRoot = resolveRepoRootFromSkillRoot(rootDisplay);
 
   const mcp = new McpServer({
-    name: 'skillpilot',
+    name: 'skilling',
     version: PACKAGE_VERSION,
-    title: 'SkillPilot',
+    title: 'Skilling',
   });
 
   const listHandler = async (input?: { tags?: string[] }) =>
@@ -384,7 +384,7 @@ export function createSkillPilotServer(skillRoot: string, config: SkillPilotConf
     'get_session',
     {
       description:
-        'Read active task session from .skillpilot/session.json. Expired TTL returns { active: false, expired: true } and clears session + active-body.md. include_body returns active-body.md when present, else reshapes using session inject_mode (read-only, no new correlation_id).',
+        'Read active task session from .skilling/session.json. Expired TTL returns { active: false, expired: true } and clears session + active-body.md. include_body returns active-body.md when present, else reshapes using session inject_mode (read-only, no new correlation_id).',
       inputSchema: {
         include_summary: z.boolean().optional(),
         include_body: z.boolean().optional(),
@@ -503,8 +503,8 @@ export function createSkillPilotServer(skillRoot: string, config: SkillPilotConf
   return mcp;
 }
 
-export async function runMcpServer(skillRoot: string, config: SkillPilotConfig): Promise<void> {
-  const server = createSkillPilotServer(skillRoot, config);
+export async function runMcpServer(skillRoot: string, config: SkillingConfig): Promise<void> {
+  const server = createSkillingServer(skillRoot, config);
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

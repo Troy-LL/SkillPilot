@@ -1,6 +1,6 @@
 /**
  * Bundled copy of repo scripts/extension-cleanup.mjs for the VS Code extension.
- * Run with cwd = SkillPilot repo root so @modelcontextprotocol/sdk resolves.
+ * Run with cwd = Skilling repo root so @modelcontextprotocol/sdk resolves.
  */
 import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -27,7 +27,7 @@ const transport = new StdioClientTransport({
   stderr: 'pipe',
 });
 
-const client = new Client({ name: 'skillpilot-extension-cleanup', version: '0.0.0' });
+const client = new Client({ name: 'Skilling-extension-cleanup', version: '0.0.0' });
 
 try {
   await client.connect(transport);

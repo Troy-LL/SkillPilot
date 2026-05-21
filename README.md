@@ -1,23 +1,23 @@
-# SkillPilot
+# Skilling
 
 **The right skill, at the right time — without filling your context window.**
 
-SkillPilot is an open-source MCP server that routes agent skills from your filesystem. It picks the best skill for each task, injects only what you need, and cleans up when the work is done. Built for Cursor, Claude Desktop, and any MCP-compatible host.
+Skilling is an open-source MCP server that routes agent skills from your filesystem. It picks the best skill for each task, injects only what you need, and cleans up when the work is done. Built for Cursor, Claude Desktop, and any MCP-compatible host.
 
 ---
 
 ## Install
 
-**npm:** [`skillpilot-mcp`](https://www.npmjs.com/package/skillpilot-mcp)
+**npm:** [`skilling`](https://www.npmjs.com/package/skilling)
 
 Add this to **Cursor Settings → MCP** or your project’s `.cursor/mcp.json`:
 
 ```json
 {
   "mcpServers": {
-    "skillpilot": {
+    "skilling": {
       "command": "npx",
-      "args": ["-y", "skillpilot-mcp@latest"],
+      "args": ["-y", "skilling@latest"],
       "env": {
         "SKILL_ROOT": "${workspaceFolder}/.agents/skills"
       }
@@ -29,18 +29,18 @@ Add this to **Cursor Settings → MCP** or your project’s `.cursor/mcp.json`:
 One-line MCP command (what `npx` runs):
 
 ```bash
-npx -y skillpilot-mcp@latest
+npx -y skilling@latest
 ```
 
 Install the package into a project (optional — MCP config above uses `npx` and needs no local install):
 
 ```bash
-npm install skillpilot-mcp
+npm install skilling
 ```
 
 Point `SKILL_ROOT` at your project’s `.agents/skills` folder. Omit it to use the **bundled** catalog shipped inside the package. Create `.agents/skills` and add skills with `npx skills add`, or use the bundled catalog as-is.
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=skillpilot&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsInNraWxscGlsb3QtbWNwQGxhdGVzdCJdLCJlbnYiOnsiU0tJTExfUk9PVCI6IiR7d29ya3NwYWNlRm9sZGVyfS8uYWdlbnRzL3NraWxscyJ9fQ==)
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=skilling&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsInNraWxsaW5nQGxhdGVzdCJdLCJlbnYiOnsiU0tJTExfUk9PVCI6IiR7d29ya3NwYWNlRm9sZGVyfS8uYWdlbnRzL3NraWxscyJ9fQ==)
 
 Regenerate the deeplink after config changes: `node scripts/generate-mcp-deeplink.mjs`
 
@@ -48,18 +48,18 @@ Regenerate the deeplink after config changes: `node scripts/generate-mcp-deeplin
 
 ---
 
-## Why SkillPilot?
+## Why Skilling?
 
 Agents work better with skills — structured playbooks for code review, MCP development, UI design, and more. But dumping entire skill libraries into every turn is expensive: wrong skills add noise, large bodies burn tokens, and stale guidance lingers after a task ends.
 
-SkillPilot treats context as a budget:
+Skilling treats context as a budget:
 
 - **Select on summaries, not full files** — routing reads ~60 tokens per skill, not thousands.
 - **Inject with depth control** — summary, compact, section, or full body depending on what you need.
 - **Plan before you execute** — map which skills a multi-step goal needs before loading anything heavy.
 - **End tasks cleanly** — `end_task` evicts injected guidance so the next conversation stays focused.
 
-Research on skill-augmented agents (e.g. [Skill0](https://arxiv.org/abs/2604.02268)) shows filtered, summary-first routing can cut per-step token cost sharply versus naïve full injection — often with better task alignment. SkillPilot brings that discipline to inference-time MCP workflows.
+Research on skill-augmented agents (e.g. [Skill0](https://arxiv.org/abs/2604.02268)) shows filtered, summary-first routing can cut per-step token cost sharply versus naïve full injection — often with better task alignment. Skilling brings that discipline to inference-time MCP workflows.
 
 ---
 
@@ -81,7 +81,7 @@ Agent works with skill body
 end_task                    ← cleanup + clear session
 ```
 
-Skills live as folders under **`.agents/skills/<skill-id>/SKILL.md`**. SkillPilot-specific metadata (tags, triggers, inject defaults) can live in **`.agents/skills-meta/<skill-id>.yaml`** so ecosystem skills survive `npx skills update` without hand-editing upstream files.
+Skills live as folders under **`.agents/skills/<skill-id>/SKILL.md`**. Skilling-specific metadata (tags, triggers, inject defaults) can live in **`.agents/skills-meta/<skill-id>.yaml`** so ecosystem skills survive `npx skills update` without hand-editing upstream files.
 
 ---
 
@@ -92,7 +92,7 @@ Skills live as folders under **`.agents/skills/<skill-id>/SKILL.md`**. SkillPilo
 | **Heuristic routing** | Tag and trigger matching on Tier 1 metadata; no LLM required for selection |
 | **Token budgets** | Exclude skills whose bodies exceed your remaining context headroom |
 | **Inject modes** | `summary` · `compact` · `sections` · `full` — escalate only when stuck |
-| **Task lifecycle** | `begin_task` / `end_task` with `.skillpilot/session.json` as source of truth |
+| **Task lifecycle** | `begin_task` / `end_task` with `.skilling/session.json` as source of truth |
 | **Metadata overlays** | Patch routing for community skills without touching their `SKILL.md` bodies |
 | **Open stack** | Node.js, stdio MCP, MIT-friendly deps — no API keys at install time |
 
@@ -114,16 +114,16 @@ Local MCP entry (repo-relative):
 ```json
 {
   "mcpServers": {
-    "skillpilot": {
+    "skilling": {
       "command": "node",
-      "args": ["<REPO>/SkillPilot/scripts/run-mcp.mjs"],
+      "args": ["<REPO>/scripts/run-mcp.mjs"],
       "env": {}
     }
   }
 }
 ```
 
-`run-mcp.mjs` sets `SKILL_ROOT` and `SKILLPILOT_SKILLS_META_DIR` from the repo. See [`docs/mcp-config.example.json`](docs/mcp-config.example.json).
+`run-mcp.mjs` sets `SKILL_ROOT` and `SKILLING_SKILLS_META_DIR` from the repo. See [`docs/mcp-config.example.json`](docs/mcp-config.example.json).
 
 ### npm publish
 
@@ -186,7 +186,7 @@ Low-level tools (debugging and custom flows):
 
 ## Configuration
 
-Copy [`skillpilot.config.json.example`](skillpilot.config.json.example) to `skillpilot.config.json` to tune defaults:
+Copy [`skilling.config.json.example`](skilling.config.json.example) to `skilling.config.json` to tune defaults:
 
 ```json
 {
@@ -222,13 +222,13 @@ MCP protocol traffic uses **stdout** only; logs go to **stderr** as structured J
 SkillPilot/
 ├── .cursor-plugin/          ← Cursor Marketplace manifest
 ├── .agents/skills/          ← canonical skill catalog (SKILL.md per skill)
-├── .agents/skills-meta/     ← SkillPilot overlays (tags, triggers, inject defaults)
+├── .agents/skills-meta/     ← Skilling overlays (tags, triggers, inject defaults)
 ├── hooks/                   ← plugin hooks (auto-begin, session-end)
 ├── mcp.json                 ← portable MCP config for plugin installs
 ├── src/                     ← MCP server (TypeScript)
-├── skillpilot_docs/         ← architecture, spec, token strategy, roadmap
+├── skilling_docs/         ← architecture, spec, token strategy, roadmap
 ├── docs/                    ← host setup, catalog, context engineering
-└── .skillpilot/             ← active session (gitignored): session.json, bridge files
+└── .skilling/             ← active session (gitignored): session.json, bridge files
 ```
 
 The legacy `skills/` directory is optional — used only if you dogfood the `ingest` tool.
@@ -239,8 +239,8 @@ The legacy `skills/` directory is optional — used only if you dogfood the `ing
 
 | Doc | Topic |
 |-----|--------|
-| [Architecture](skillpilot_docs/ARCHITECTURE.md) | Tiers, lifecycle, design constraints |
-| [Specification](skillpilot_docs/SPEC.md) | Tool contracts and error codes |
+| [Architecture](skilling_docs/ARCHITECTURE.md) | Tiers, lifecycle, design constraints |
+| [Specification](skilling_docs/SPEC.md) | Tool contracts and error codes |
 | [Context engineering](docs/CONTEXT_ENGINEERING.md) | Inject ladder and overlay workflow |
 | [Host setup](docs/HOST_MCP_SETUP.md) | Cursor and VS Code MCP wiring |
 | [Skills catalog](docs/SKILLS_CATALOG.md) | Install, overlay, and route skills |

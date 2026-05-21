@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { SkillPilotError } from './errors.js';
+import { SkillingError } from './errors.js';
 import {
   extractSectionsByHeading,
   resolveInjectMode,
@@ -21,7 +21,7 @@ describe('shapeSkillBody', () => {
   it('throws BODY_TOO_LARGE when over limit in full mode', () => {
     const huge = 'x'.repeat(9000);
     assert.throws(() => shapeSkillBody(huge, 100), (e) => {
-      return e instanceof SkillPilotError && e.code === 'BODY_TOO_LARGE';
+      return e instanceof SkillingError && e.code === 'BODY_TOO_LARGE';
     });
   });
 

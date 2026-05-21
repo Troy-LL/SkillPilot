@@ -24,12 +24,12 @@ async function readStdinJson() {
 }
 
 function isOptedOut(workspaceRoot) {
-  if (process.env.SKILLPILOT_SKIP_AUTO_BEGIN === '1') return true;
-  return fs.existsSync(path.join(workspaceRoot, '.skillpilot', 'disable-auto-begin'));
+  if (process.env.SKILLING_SKIP_AUTO_BEGIN === '1') return true;
+  return fs.existsSync(path.join(workspaceRoot, '.skilling', 'disable-auto-begin'));
 }
 
 function readSession(workspaceRoot) {
-  const file = path.join(workspaceRoot, '.skillpilot', 'session.json');
+  const file = path.join(workspaceRoot, '.skilling', 'session.json');
   if (!fs.existsSync(file)) return null;
   try {
     const session = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -64,12 +64,12 @@ function runBeginTask(serverRoot, skillRoot, prompt) {
   const beginScript = path.join(serverRoot, 'scripts', 'extension-begin-task.mjs');
   if (!fs.existsSync(serverEntry)) {
     process.stderr.write(
-      `skillpilot-auto-begin: missing ${serverEntry} (run npm run build)\n`,
+      `Skilling-auto-begin: missing ${serverEntry} (run npm run build)\n`,
     );
     return null;
   }
   if (!fs.existsSync(beginScript)) {
-    process.stderr.write(`skillpilot-auto-begin: missing ${beginScript}\n`);
+    process.stderr.write(`Skilling-auto-begin: missing ${beginScript}\n`);
     return null;
   }
 
@@ -80,14 +80,14 @@ function runBeginTask(serverRoot, skillRoot, prompt) {
       cwd: serverRoot,
       encoding: 'utf8',
       windowsHide: true,
-      env: { ...process.env, SKILLPILOT_PROMPT: prompt },
+      env: { ...process.env, SKILLING_PROMPT: prompt },
     },
   );
 
   if (result.status !== 0) {
     process.stderr.write(
       result.stderr?.trim() ||
-        `skillpilot-auto-begin: begin_task exited ${result.status ?? 'unknown'}\n`,
+        `Skilling-auto-begin: begin_task exited ${result.status ?? 'unknown'}\n`,
     );
     return null;
   }
@@ -95,20 +95,20 @@ function runBeginTask(serverRoot, skillRoot, prompt) {
   try {
     return JSON.parse(result.stdout?.trim() || '{}');
   } catch {
-    process.stderr.write('skillpilot-auto-begin: invalid begin_task JSON output\n');
+    process.stderr.write('Skilling-auto-begin: invalid begin_task JSON output\n');
     return null;
   }
 }
 
 function writeActiveBody(workspaceRoot, skillId, body) {
-  const dir = path.join(workspaceRoot, '.skillpilot');
+  const dir = path.join(workspaceRoot, '.skilling');
   fs.mkdirSync(dir, { recursive: true });
-  const header = `<!-- SkillPilot ephemeral bridge — do not commit. skill_id: ${skillId} -->\n\n`;
+  const header = `<!-- Skilling ephemeral bridge — do not commit. skill_id: ${skillId} -->\n\n`;
   fs.writeFileSync(path.join(dir, 'active-body.md'), header + body, 'utf8');
 }
 
 function log(message) {
-  process.stderr.write(`skillpilot-auto-begin: ${message}\n`);
+  process.stderr.write(`Skilling-auto-begin: ${message}\n`);
 }
 
 async function main() {
@@ -161,7 +161,7 @@ async function main() {
 
 main().catch((err) => {
   process.stderr.write(
-    `skillpilot-auto-begin error: ${err instanceof Error ? err.message : String(err)}\n`,
+    `Skilling-auto-begin error: ${err instanceof Error ? err.message : String(err)}\n`,
   );
   process.stdout.write(JSON.stringify({ continue: true }) + '\n');
   process.exit(0);

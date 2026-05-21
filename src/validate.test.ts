@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import path from 'node:path';
 import { assertPathUnderRoot } from './store.js';
-import { SkillPilotError } from './errors.js';
+import { SkillingError } from './errors.js';
 import { isValidSkillId, requireNonEmptyTrimmed } from './validate.js';
 
 describe('isValidSkillId', () => {
   it('accepts valid ids', () => {
-    assert.equal(isValidSkillId('com-skillpilot-ci-triage'), true);
+    assert.equal(isValidSkillId('com-skilling-ci-triage'), true);
     assert.equal(isValidSkillId('abc'), true);
   });
 
@@ -44,7 +44,7 @@ describe('requireNonEmptyTrimmed', () => {
     assert.throws(
       () => requireNonEmptyTrimmed('   ', 'skill_plan goal'),
       (e: unknown) =>
-        e instanceof SkillPilotError &&
+        e instanceof SkillingError &&
         e.code === 'VALIDATION_ERROR' &&
         e.message.includes('skill_plan goal'),
     );

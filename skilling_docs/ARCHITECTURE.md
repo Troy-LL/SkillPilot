@@ -1,4 +1,4 @@
-# SkillPilot — Architecture
+# Skilling — Architecture
 
 > This document is the authoritative written counterpart to `skill_router_architecture.svg`. It defines structure, contracts, and decision rationale that a diagram alone cannot carry.
 
@@ -6,7 +6,7 @@
 
 ## Purpose
 
-SkillPilot is an **MCP server that acts as a universal skill router**. Any MCP-compatible host — Cursor agents, Claude Desktop, custom CLI agents, or any other MCP client — connects, sends a **prompt / goal / context**, and receives back the **right skill text** formatted as a system-prompt addition. After the task, the client **evicts** that addition so the next turn is not polluted.
+Skilling is an **MCP server that acts as a universal skill router**. Any MCP-compatible host — Cursor agents, Claude Desktop, custom CLI agents, or any other MCP client — connects, sends a **prompt / goal / context**, and receives back the **right skill text** formatted as a system-prompt addition. After the task, the client **evicts** that addition so the next turn is not polluted.
 
 Two things the router owns: **which skill to return** and **when it is considered active vs cleared**.  
 One thing the router does not own: **how** the host merges the returned text into its system prompt.
@@ -23,7 +23,7 @@ One thing the router does not own: **how** the host merges the returned text int
 | Column | What it represents |
 |---|---|
 | **Clients** | Cursor / Windsurf, Claude Desktop, a custom CLI, or any MCP-compatible host |
-| **MCP Server ("SkillPilot")** | Exposes tools: `skill_select`, `skill_inject`, `skill_cleanup`, `skill_list`, `skill_plan` |
+| **MCP Server ("Skilling")** | Exposes tools: `skill_select`, `skill_inject`, `skill_cleanup`, `skill_list`, `skill_plan` |
 | **Selector** | Pluggable strategy that picks the best-fit skill(s) from candidates |
 | **Skill Store** | Local filesystem under a configurable root; files follow `SKILL.md` or `*.skill` convention |
 | **Lifecycle column** | Per-request state machine: receive → select → inject → execute → cleanup |
@@ -60,7 +60,7 @@ Client
 
 Injecting full skill bodies unconditionally is the leading cause of context bloat in skill-augmented agents. Research (Skill0, arXiv:2604.02268) shows naïve full injection can cost 2–5× more tokens per step than a filtered, summary-first approach, with *worse* task performance due to retrieval noise.
 
-SkillPilot addresses this at the architecture level via **tiered skill manifests**:
+Skilling addresses this at the architecture level via **tiered skill manifests**:
 
 ### Tier 0 — Index (always in memory, ~5 tokens per skill)
 ```
@@ -153,7 +153,7 @@ The selector is behind a single interface. Swapping implementations does not cha
 
 ## Skill Store Contract
 
-- **Root:** Configurable directory — not hard-coded. Set via `SKILLPILOT_SKILLS_ROOT` env var or server config.
+- **Root:** Configurable directory — not hard-coded. Set via `SKILLING_SKILLS_ROOT` env var or server config.
 - **Artifacts:** One primary document per skill (`SKILL.md` or `*.skill`). Optional sibling files (examples, checklists, scripts) referenced by relative path.
 - **Manifest / Front matter:**
   ```yaml
@@ -249,7 +249,7 @@ All of the above implemented as stdout JSON logs in v1. No metrics library requi
 
 ## Relation to the Visual Diagram
 
-- **Solid arrows** — Normal request path: clients → SkillPilot; Router → selector; selector → skill store; Router ↔ lifecycle.
+- **Solid arrows** — Normal request path: clients → Skilling; Router → selector; selector → skill store; Router ↔ lifecycle.
 - **Dashed arrows** — The injectable system prompt is the **return value** to the calling agent, not a hidden side channel.
 
 For the authoritative graphic, see `skill_router_architecture.svg`.

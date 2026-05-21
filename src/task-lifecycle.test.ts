@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { SkillPilotError } from './errors.js';
+import { SkillingError } from './errors.js';
 import { loadConfig } from './config.js';
 import {
   readSession,
@@ -20,7 +20,7 @@ const config = loadConfig(repoRoot, agentsSkills);
 
 describe('task-lifecycle', () => {
   it('beginTask selects find-skills for discovery prompt', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-task-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-'));
     try {
       const result = beginTask(agentsSkills, repo, config, {
         prompt: 'npx skills find install a skill from skills.sh for API testing',
@@ -43,7 +43,7 @@ describe('task-lifecycle', () => {
   });
 
   it('beginTask writes active-body bridge file', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-task-bridge-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-bridge-'));
     try {
       const result = beginTask(agentsSkills, repo, config, {
         prompt: 'find a skill for deployment',
@@ -61,7 +61,7 @@ describe('task-lifecycle', () => {
   });
 
   it('response_detail full includes alternatives when present', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-task-full-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-full-'));
     try {
       const result = beginTask(agentsSkills, repo, config, {
         prompt: 'find a skill for API testing',
@@ -75,7 +75,7 @@ describe('task-lifecycle', () => {
   });
 
   it('getSession include_body loads skill text', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-task-body-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-body-'));
     try {
       beginTask(agentsSkills, repo, config, {
         prompt: 'find a skill for deployment',
@@ -94,7 +94,7 @@ describe('task-lifecycle', () => {
   });
 
   it('getSession include_body does not grow correlation registry', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-task-registry-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-registry-'));
     try {
       beginTask(agentsSkills, repo, config, {
         prompt: 'find a skill for deployment',
@@ -120,7 +120,7 @@ describe('task-lifecycle', () => {
   });
 
   it('getSession returns inactive and clears expired session', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-task-expired-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-expired-'));
     try {
       writeSession(repo, {
         skill_id: 'find-skills',
@@ -145,7 +145,7 @@ describe('task-lifecycle', () => {
   });
 
   it('endTask rejects mismatched correlation_id', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-task-end-mismatch-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-end-mismatch-'));
     try {
       writeSession(repo, {
         skill_id: 'find-skills',
@@ -160,7 +160,7 @@ describe('task-lifecycle', () => {
       assert.throws(
         () => endTask(repo, '00000000-0000-4000-8000-000000000011'),
         (e: unknown) =>
-          e instanceof SkillPilotError &&
+          e instanceof SkillingError &&
           e.code === 'VALIDATION_ERROR' &&
           e.message.includes('correlation_id'),
       );
@@ -171,9 +171,9 @@ describe('task-lifecycle', () => {
   });
 
   it('end_previous cleans up prior active session', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-task-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-'));
     try {
-      const first = loadSkillEpisode(agentsSkills, 'com-skillpilot-orchestrator', config);
+      const first = loadSkillEpisode(agentsSkills, 'com-skilling-orchestrator', config);
       writeSession(repo, {
         skill_id: first.skill_id,
         title: first.title,
@@ -197,7 +197,7 @@ describe('task-lifecycle', () => {
   });
 
   it('end_previous clears expired prior session without cleanup error', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-task-expired-prev-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-expired-prev-'));
     try {
       writeSession(repo, {
         skill_id: 'find-skills',
@@ -221,7 +221,7 @@ describe('task-lifecycle', () => {
   });
 
   it('beginTask rejects low-confidence auto-select', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-task-low-conf-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-low-conf-'));
     try {
       assert.throws(
         () =>
@@ -229,7 +229,7 @@ describe('task-lifecycle', () => {
             prompt: 'deploy kubernetes cluster with helm charts and RBAC policies',
           }),
         (e: unknown) =>
-          e instanceof SkillPilotError &&
+          e instanceof SkillingError &&
           e.code === 'VALIDATION_ERROR' &&
           (e.message.includes('No strong skill match') ||
             e.message.includes('No skill matched')),
@@ -240,7 +240,7 @@ describe('task-lifecycle', () => {
   });
 
   it('getSession include_body matches begin_task inject_mode and active-body bridge', () => {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skillpilot-task-inject-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-inject-'));
     try {
       const begun = beginTask(agentsSkills, repo, config, {
         prompt: 'find a skill for deployment',

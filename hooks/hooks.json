@@ -3,13 +3,13 @@
   "hooks": {
     "beforeSubmitPrompt": [
       {
-        "command": "node hooks/skillpilot-auto-begin.mjs",
+        "command": "node hooks/skilling-auto-begin.mjs",
         "timeout": 60
       }
     ],
     "sessionEnd": [
       {
-        "command": "node hooks/skillpilot-session-end.mjs",
+        "command": "node hooks/skilling-session-end.mjs",
         "timeout": 60
       }
     ]

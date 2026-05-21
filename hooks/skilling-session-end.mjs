@@ -1,5 +1,5 @@
 /**
- * sessionEnd: MCP cleanup + clear workspace .skillpilot/session.json.
+ * sessionEnd: MCP cleanup + clear workspace .skilling/session.json.
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -24,7 +24,7 @@ async function readStdinJson() {
 }
 
 function readSession(workspaceRoot) {
-  const file = path.join(workspaceRoot, '.skillpilot', 'session.json');
+  const file = path.join(workspaceRoot, '.skilling', 'session.json');
   if (!fs.existsSync(file)) return null;
   try {
     const session = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -40,12 +40,12 @@ function runCleanup(serverRoot, skillRoot, correlationId) {
   const cleanupScript = path.join(serverRoot, 'scripts', 'extension-cleanup.mjs');
   if (!fs.existsSync(serverEntry)) {
     process.stderr.write(
-      `skillpilot-session-end: missing ${serverEntry} (run npm run build)\n`,
+      `Skilling-session-end: missing ${serverEntry} (run npm run build)\n`,
     );
     return false;
   }
   if (!fs.existsSync(cleanupScript)) {
-    process.stderr.write(`skillpilot-session-end: missing ${cleanupScript}\n`);
+    process.stderr.write(`Skilling-session-end: missing ${cleanupScript}\n`);
     return false;
   }
 
@@ -58,7 +58,7 @@ function runCleanup(serverRoot, skillRoot, correlationId) {
   if (result.status !== 0) {
     process.stderr.write(
       result.stderr?.trim() ||
-        `skillpilot-session-end: cleanup exited ${result.status ?? 'unknown'}\n`,
+        `Skilling-session-end: cleanup exited ${result.status ?? 'unknown'}\n`,
     );
     return false;
   }
@@ -66,7 +66,7 @@ function runCleanup(serverRoot, skillRoot, correlationId) {
 }
 
 function log(eventName, message) {
-  process.stderr.write(`skillpilot-session-end [${eventName}]: ${message}\n`);
+  process.stderr.write(`Skilling-session-end [${eventName}]: ${message}\n`);
 }
 
 async function main() {
@@ -83,7 +83,7 @@ async function main() {
     const cleaned = runCleanup(serverRoot, skillRoot, correlation_id);
     if (cleaned) {
       fs.unlinkSync(hit.file);
-      const bodyFile = path.join(workspaceRoot, '.skillpilot', 'active-body.md');
+      const bodyFile = path.join(workspaceRoot, '.skilling', 'active-body.md');
       if (fs.existsSync(bodyFile)) fs.unlinkSync(bodyFile);
       log(eventName, `cleanup ok for ${skill_id} (${correlation_id})`);
     } else {
@@ -97,7 +97,7 @@ async function main() {
 
 main().catch((err) => {
   process.stderr.write(
-    `skillpilot-session-end error: ${err instanceof Error ? err.message : String(err)}\n`,
+    `Skilling-session-end error: ${err instanceof Error ? err.message : String(err)}\n`,
   );
   process.stdout.write('{}\n');
   process.exit(0);

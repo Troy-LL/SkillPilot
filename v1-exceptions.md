@@ -1,10 +1,10 @@
-# SkillPilot V1 exceptions
+# Skilling V1 exceptions
 
 Authoritative **V1 MVP** relaxations and defaults. Where this file is silent, `skill-rules.md` and `architecture.md` apply.
 
 ## 1. Scope
 
-v1 ships a **stdio MCP server** with tools **`list`**, **`select`** (heuristic only), **`ingest`**, **`load`**, **`cleanup`**, plus Sprint E lifecycle tools **`begin_task`**, **`end_task`**, and **`get_session`**, over a local filesystem skill store. Episode state is also written to **`.skillpilot/session.json`** at the repo root (gitignored) for extension and future hooks. There is **no** LLM-assisted ranking, no embedding index, and no remote store sync in this release.
+v1 ships a **stdio MCP server** with tools **`list`**, **`select`** (heuristic only), **`ingest`**, **`load`**, **`cleanup`**, plus Sprint E lifecycle tools **`begin_task`**, **`end_task`**, and **`get_session`**, over a local filesystem skill store. Episode state is also written to **`.skilling/session.json`** at the repo root (gitignored) for extension and future hooks. There is **no** LLM-assisted ranking, no embedding index, and no remote store sync in this release.
 
 ## 2. Metadata handling
 
@@ -39,4 +39,4 @@ A **`cleanup`** tool is provided (architecture: idempotent release). Repeated ca
 
 ## 7. Editor extension (Sprint C)
 
-A minimal **SkillPilot Lifecycle** extension ships under **`extension/`** (command-based register + TTL + MCP `cleanup`). It does **not** auto-hook agent `load` calls. See **`docs/EXTENSION.md`**. Acceptance criteria and future hooks: **`docs/FOLLOWUP-extension.md`**.
+A minimal **Skilling Lifecycle** extension ships under **`extension/`** (command-based register + TTL + MCP `cleanup`). It does **not** auto-hook agent `load` calls. See **`docs/EXTENSION.md`**. Acceptance criteria and future hooks: **`docs/FOLLOWUP-extension.md`**.

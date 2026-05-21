@@ -14,7 +14,7 @@ function resolveCleanupScript(extensionPath: string): { script: string; cwd: str
     }
   }
   throw new Error(
-    'extension-cleanup.mjs not found. Open the SkillPilot repo or install the extension from this repository.',
+    'extension-cleanup.mjs not found. Open the Skilling repo or install the extension from this repository.',
   );
 }
 

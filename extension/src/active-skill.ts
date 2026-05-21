@@ -23,9 +23,9 @@ export class ActiveSkillManager {
     private readonly extensionPath: string,
   ) {
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
-    this.statusBar.command = 'skillpilot.dismissActiveSkill';
+    this.statusBar.command = 'skilling.dismissActiveSkill';
     context.subscriptions.push(this.statusBar);
-    const saved = context.workspaceState.get<ActiveSkillState>('skillpilot.active');
+    const saved = context.workspaceState.get<ActiveSkillState>('skilling.active');
     if (saved && saved.expiresAt > Date.now()) {
       this.arm(saved, false);
     }
@@ -70,10 +70,10 @@ export class ActiveSkillManager {
     this.clearTimers();
     this.state = undefined;
     this.statusBar.hide();
-    await this.context.workspaceState.update('skillpilot.active', undefined);
+    await this.context.workspaceState.update('skilling.active', undefined);
     if (!current) {
       if (manual) {
-        vscode.window.showInformationMessage('SkillPilot: no active skill to dismiss.');
+        vscode.window.showInformationMessage('Skilling: no active skill to dismiss.');
       }
       return;
     }
@@ -88,7 +88,7 @@ export class ActiveSkillManager {
   private arm(state: ActiveSkillState, persist: boolean): void {
     this.state = state;
     if (persist) {
-      void this.context.workspaceState.update('skillpilot.active', state);
+      void this.context.workspaceState.update('skilling.active', state);
     }
     this.updateStatusBar();
     const remaining = state.expiresAt - Date.now();
@@ -116,7 +116,7 @@ export class ActiveSkillManager {
     const mins = Math.ceil(remainingMs / 60_000);
     this.statusBar.text = `$(book) ${this.displayLabel()} (${mins}m)`;
     const lines = [
-      'SkillPilot active — click to dismiss (cleanup).',
+      'Skilling active — click to dismiss (cleanup).',
       this.state.summary ? `Summary: ${this.state.summary}` : undefined,
       this.state.rationale ? `Rationale: ${this.state.rationale}` : undefined,
       `skill_id: ${this.state.skillId}`,
@@ -129,12 +129,12 @@ export class ActiveSkillManager {
   private async onTtlFire(): Promise<void> {
     const current = this.state;
     if (!current) return;
-    const config = vscode.workspace.getConfiguration('skillpilot');
+    const config = vscode.workspace.getConfiguration('skilling');
     const prompt = config.get<boolean>('promptBeforeCleanup', false);
     const label = current.title ?? current.skillId;
     if (prompt) {
       const choice = await vscode.window.showWarningMessage(
-        `SkillPilot: TTL expired for "${label}". Run cleanup?`,
+        `Skilling: TTL expired for "${label}". Run cleanup?`,
         'Cleanup',
         'Keep active',
       );
@@ -143,11 +143,11 @@ export class ActiveSkillManager {
       }
     }
     await this.dismiss(false);
-    vscode.window.showInformationMessage(`SkillPilot: TTL expired — cleanup sent for ${label}.`);
+    vscode.window.showInformationMessage(`Skilling: TTL expired — cleanup sent for ${label}.`);
   }
 
   private async invokeCleanup(correlationId: string, skillId: string, manual: boolean): Promise<void> {
-    const config = vscode.workspace.getConfiguration('skillpilot');
+    const config = vscode.workspace.getConfiguration('skilling');
     const auto = config.get<boolean>('autoCleanupOnTtl', true);
     if (!auto && !manual) return;
 
@@ -155,7 +155,7 @@ export class ActiveSkillManager {
     const skillRoot = config.get<string>('skillRoot', '').trim();
     if (!serverEntry) {
       vscode.window.showWarningMessage(
-        'SkillPilot: set skillpilot.serverEntry to your dist/index.js path to run MCP cleanup from the extension.',
+        'Skilling: set skilling.serverEntry to your dist/index.js path to run MCP cleanup from the extension.',
       );
       return;
     }
@@ -168,11 +168,11 @@ export class ActiveSkillManager {
         this.extensionPath,
       );
       if (manual) {
-        vscode.window.showInformationMessage(`SkillPilot: cleanup ok for ${skillId}.`);
+        vscode.window.showInformationMessage(`Skilling: cleanup ok for ${skillId}.`);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      vscode.window.showErrorMessage(`SkillPilot cleanup failed: ${msg}`);
+      vscode.window.showErrorMessage(`Skilling cleanup failed: ${msg}`);
     }
   }
 }

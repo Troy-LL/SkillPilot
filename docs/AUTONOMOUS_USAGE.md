@@ -1,12 +1,12 @@
-# Autonomous SkillPilot usage (Sprint E)
+# Autonomous Skilling usage (Sprint E)
 
-SkillPilot cannot force an IDE agent to call tools. Sprint E adds **policy** (Cursor rules), **fewer MCP steps** (`begin_task` / `end_task`), and a **session file** so the extension and future hooks share one source of truth.
+Skilling cannot force an IDE agent to call tools. Sprint E adds **policy** (Cursor rules), **fewer MCP steps** (`begin_task` / `end_task`), and a **session file** so the extension and future hooks share one source of truth.
 
 ## E1 — Implemented
 
 ### Session file (SOT on disk)
 
-Path: **`.skillpilot/session.json`** at the repo root (gitignored). Written by **`begin_task`**, cleared by **`end_task`**.
+Path: **`.skilling/session.json`** at the repo root (gitignored). Written by **`begin_task`**, cleared by **`end_task`**.
 
 ```json
 {
@@ -28,7 +28,7 @@ Path: **`.skillpilot/session.json`** at the repo root (gitignored). Written by *
 | Tool | Role |
 |------|------|
 | **`skill_plan`** | Tier-1-only plan + `skills_needed` before multi-phase work |
-| **`begin_task`** | `select` (unless `skill_id`) + shaped `load` + write session + **`.skillpilot/active-body.md`** bridge; `token_budget`, `phase` |
+| **`begin_task`** | `select` (unless `skill_id`) + shaped `load` + write session + **`.skilling/active-body.md`** bridge; `token_budget`, `phase` |
 | **`end_task`** | `cleanup` + clear session |
 | **`get_session`** | Read active episode or `{ active: false }` (inactive when TTL expired — clears stale session files, same as auto-begin hook). `include_body` shapes skill text read-only (no new correlation_id). |
 | `list` / `skill_list`, `select`, `load`, `health` | Debugging and catalog checks |
@@ -38,11 +38,11 @@ Path: **`.skillpilot/session.json`** at the repo root (gitignored). Written by *
 
 ### Cursor rules
 
-[`.cursor/rules/skillpilot-lifecycle.mdc`](../.cursor/rules/skillpilot-lifecycle.mdc) — `alwaysApply: true` policy for agents in this repo.
+[`.cursor/rules/skilling-lifecycle.mdc`](../.cursor/rules/skilling-lifecycle.mdc) — `alwaysApply: true` policy for agents in this repo.
 
 ### Extension
 
-**SkillPilot: Register Active Session** — reads `.skillpilot/session.json` and starts the status-bar TTL (no clipboard).
+**Skilling: Register Active Session** — reads `.skilling/session.json` and starts the status-bar TTL (no clipboard).
 
 ### Limitations (honest)
 
@@ -50,7 +50,7 @@ Path: **`.skillpilot/session.json`** at the repo root (gitignored). Written by *
 - Session file tracks the **last begin_task** in this repo; it does not remove text from the host context by itself.
 - **`cleanup`** in the MCP process is bookkeeping; the host must drop injected guidance.
 - **Correlation registry** is in-memory per MCP process. Hooks spawn a short-lived MCP child ([`scripts/extension-begin-task.mjs`](../scripts/extension-begin-task.mjs), [`extension-cleanup.mjs`](../scripts/extension-cleanup.mjs)); **`end_task`** and session files on disk are the durable SOT across processes.
-- Corrupt **`.skillpilot/session.json`** is treated as no session (stderr warning once on parse failure).
+- Corrupt **`.skilling/session.json`** is treated as no session (stderr warning once on parse failure).
 
 ## E2 — Phase 1 (implemented)
 
@@ -58,11 +58,11 @@ Project hook **`.cursor/hooks.json`** runs on **`sessionEnd`** (composer convers
 
 | Step | Behavior |
 |------|----------|
-| 1 | Find **`.skillpilot/session.json`** under workspace roots / repo root |
+| 1 | Find **`.skilling/session.json`** under workspace roots / repo root |
 | 2 | Run **`scripts/extension-cleanup.mjs`** (`cleanup` via stdio MCP) |
 | 3 | Delete session file on success |
 
-Script: **[`hooks/skillpilot-session-end.mjs`](../hooks/skillpilot-session-end.mjs)** (Node; logs to stderr).
+Script: **[`hooks/skilling-session-end.mjs`](../hooks/skilling-session-end.mjs)** (Node; logs to stderr).
 
 **Why not `stop`?** The `stop` hook fires after each agent loop turn; cleaning there would drop the session mid-chat. Use **`end_task`** in chat when switching topics without closing the composer.
 
@@ -87,7 +87,7 @@ npm run test:session-end-hook
 
 ### Session file v2
 
-**`.skillpilot/session.json`** now includes `title`, `summary`, `rationale`, `confidence`, optional `warnings`, and `prompt_fingerprint`. Legacy v1 files are read with sensible defaults.
+**`.skilling/session.json`** now includes `title`, `summary`, `rationale`, `confidence`, optional `warnings`, and `prompt_fingerprint`. Legacy v1 files are read with sensible defaults.
 
 ### MCP presentation
 
@@ -99,14 +99,14 @@ npm run test:session-end-hook
 
 ### Auto `begin_task` hook
 
-**`beforeSubmitPrompt`** → [`hooks/skillpilot-auto-begin.mjs`](../hooks/skillpilot-auto-begin.mjs):
+**`beforeSubmitPrompt`** → [`hooks/skilling-auto-begin.mjs`](../hooks/skilling-auto-begin.mjs):
 
 | Step | Behavior |
 |------|----------|
-| 1 | Skip if opt-out (`SKILLPILOT_SKIP_AUTO_BEGIN=1` or `.skillpilot/disable-auto-begin`) |
+| 1 | Skip if opt-out (`SKILLING_SKIP_AUTO_BEGIN=1` or `.skilling/disable-auto-begin`) |
 | 2 | Skip if session exists and TTL not expired |
 | 3 | If expired → cleanup, then `begin_task` via [`scripts/extension-begin-task.mjs`](../scripts/extension-begin-task.mjs) |
-| 4 | Write **`.skillpilot/active-body.md`** bridge when MCP returns `body` (MCP **`begin_task`** also writes the bridge; hook ensures workspace-root copy when paths align) |
+| 4 | Write **`.skilling/active-body.md`** bridge when MCP returns `body` (MCP **`begin_task`** also writes the bridge; hook ensures workspace-root copy when paths align) |
 | 5 | Return `{ "continue": true }` (fail-open on errors) |
 
 Reload Cursor after changing [`.cursor/hooks.json`](../.cursor/hooks.json). Requires `npm run build`.
@@ -120,11 +120,11 @@ npm run test:auto-begin-hook
 
 ### Bridge file (host limit workaround)
 
-Cursor **`beforeSubmitPrompt`** cannot inject `additional_context` yet. Agents follow **`.skillpilot/active-body.md`** when present (see lifecycle rule). Remove bridge when Cursor supports prompt-time injection.
+Cursor **`beforeSubmitPrompt`** cannot inject `additional_context` yet. Agents follow **`.skilling/active-body.md`** when present (see lifecycle rule). Remove bridge when Cursor supports prompt-time injection.
 
 ### Extension (Sprint F)
 
-- **`skillpilot.autoRegisterSession`** (default `true`) — watches `session.json` and starts status-bar TTL automatically.
+- **`skilling.autoRegisterSession`** (default `true`) — watches `session.json` and starts status-bar TTL automatically.
 - Status bar shows **title** / tooltip with **summary** and **rationale**.
 
 ### Agent presentation (policy)
@@ -141,7 +141,7 @@ Cursor **`beforeSubmitPrompt`** cannot inject `additional_context` yet. Agents f
 3. Send a coding prompt → hook creates `session.json` + `active-body.md` without agent calling `begin_task`
 4. Second prompt in same chat → hook skips (active session)
 5. `end_task` or close composer → session + bridge cleared
-6. Extension: status bar appears without manual Register (when `skillpilot.autoRegisterSession` is true)
+6. Extension: status bar appears without manual Register (when `skilling.autoRegisterSession` is true)
 
 Record results in [VALIDATION_REPORT.md](VALIDATION_REPORT.md).
 
