@@ -32,29 +32,42 @@ Opt out: `SKILLING_SKIP_AUTO_SETUP=1` (seed only) or `SKILLING_SKIP_POSTINSTALL=
 
 ### Manual MCP JSON (advanced)
 
-Add this to **Cursor Settings → MCP** or your project’s `.cursor/mcp.json`:
+`npm install skilling` + `npx skilling setup` handles this automatically with absolute paths. Use manual JSON only when you cannot run postinstall or need a custom config.
+
+**Cursor / Claude Desktop / Windsurf** (`mcpServers`):
 
 ```json
 {
   "mcpServers": {
     "skilling": {
       "command": "npx",
-      "args": ["-y", "skilling@latest"],
-      "env": {
-        "SKILL_ROOT": "${workspaceFolder}/.agents/skills"
-      }
+      "args": ["-y", "skilling@latest"]
     }
   }
 }
 ```
 
-One-line MCP command (what `npx` runs):
+**VS Code Copilot** (`.vscode/mcp.json`, `servers` key + `type: "stdio"`):
 
-```bash
-npx -y skilling@latest
+```json
+{
+  "servers": {
+    "skilling": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "skilling@latest"]
+    }
+  }
+}
 ```
 
-The MCP JSON block above is optional if you use **`npm install skilling`** (postinstall + setup). For `npx`-only installs without a local dependency, point `SKILL_ROOT` at `.agents/skills` or omit it and use the bundled catalog.
+For **global hosts** (Claude Desktop, Windsurf, Zed) add an absolute `SKILL_ROOT` — `${workspaceFolder}` is **not** expanded by most hosts:
+
+```json
+"env": { "SKILL_ROOT": "/absolute/path/to/your/project/.agents/skills" }
+```
+
+See [`docs/HOST_MCP_SETUP.md`](docs/HOST_MCP_SETUP.md) for the full host compatibility table.
 
 ### Install in Cursor
 
@@ -158,15 +171,8 @@ Install from **[cursor.directory/plugins/skilling](https://cursor.directory/plug
 **Verify locally:**
 
 ```bash
-# Bash
-export SKILL_ROOT="$(pwd)/.agents/skills"
-npm run smoke
-
-# PowerShell
-$env:SKILL_ROOT = "$PWD/.agents/skills"
 npm run smoke
 ```
-
 ---
 
 ## Growing your skill catalog
@@ -258,7 +264,7 @@ SkillPilot/
 | Doc | Topic |
 |-----|--------|
 | [Context engineering](docs/CONTEXT_ENGINEERING.md) | Inject ladder and overlay workflow |
-| [Host setup](docs/HOST_MCP_SETUP.md) | Cursor and VS Code MCP wiring |
+| [Host setup](docs/HOST_MCP_SETUP.md) | All MCP-compatible hosts — setup, compatibility, troubleshooting |
 | [Skills catalog](docs/SKILLS_CATALOG.md) | Install, overlay, and route skills |
 | [Autonomous usage](docs/AUTONOMOUS_USAGE.md) | Hooks, session file, agent policy |
 | [Extension](docs/EXTENSION.md) | TTL status-bar companion |
