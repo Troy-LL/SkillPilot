@@ -202,7 +202,7 @@ Copy [`skilling.config.json.example`](skilling.config.json.example) to `skilling
 }
 ```
 
-Resolution order for the skill root: `--skill-root` → `SKILL_ROOT` env → config file → `./.agents/skills`.
+Resolution order for the skill root: `--skill-root` → `SKILL_ROOT` env (skipped if literal `${…}`) → config file → walk up from cwd for `.agents/skills` → bundled catalog → `./.agents/skills`.
 
 MCP protocol traffic uses **stdout** only; logs go to **stderr** as structured JSON.
 

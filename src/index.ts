@@ -18,7 +18,7 @@ function parseArgs(argv: string[]): { skillRoot?: string } {
       process.stdout.write(`Skilling MCP (stdio)
 
 Environment:
-  SKILL_ROOT              Directory of skill folders (default: ./.agents/skills from cwd)
+  SKILL_ROOT              Directory of skill folders (default: discover .agents/skills from cwd, else bundled catalog)
   SKILLING_SKILLS_ROOT  Same as SKILL_ROOT
   SKILLING_CONFIG       Path to Skilling.config.json
 

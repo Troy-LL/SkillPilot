@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   DEFAULT_TOKEN_BUDGET,
   DEFAULT_TTL_MS,
@@ -60,13 +61,77 @@ function loadFileConfig(cwd: string): FileConfig {
   return {};
 }
 
+/** Hosts sometimes pass literal `${workspaceFolder}` when template expansion is unsupported. */
+export function isUnresolvedTemplatePath(value: string): boolean {
+  return value.includes('${');
+}
+
+function isSkillsDir(candidate: string): boolean {
+  try {
+    return fs.existsSync(candidate) && fs.statSync(candidate).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/** Walk upward from startDir looking for `<dir>/.agents/skills`. */
+export function discoverWorkspaceSkillsRoot(startDir: string): string | null {
+  if (!startDir.trim()) return null;
+  let dir = path.resolve(startDir);
+  for (let depth = 0; depth < 25; depth++) {
+    const candidate = path.join(dir, '.agents', 'skills');
+    if (isSkillsDir(candidate)) return candidate;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+/** Bundled catalog shipped with the npm package (parent of dist/). */
+export function resolveBundledSkillsRoot(): string | null {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const candidate = path.resolve(here, '..', '.agents', 'skills');
+  return isSkillsDir(candidate) ? candidate : null;
+}
+
+function normalizeEnvRoot(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed || isUnresolvedTemplatePath(trimmed)) return undefined;
+  return trimmed;
+}
+
+function resolveSkillsRootPath(
+  cwd: string,
+  cliSkillRoot: string | undefined,
+  fileSkillsRoot: string | undefined,
+): string {
+  if (cliSkillRoot?.trim()) return path.resolve(cliSkillRoot.trim());
+
+  const envRoot =
+    normalizeEnvRoot(process.env['SKILL_ROOT']) ??
+    normalizeEnvRoot(process.env['SKILLING_SKILLS_ROOT']);
+  if (envRoot) return path.resolve(envRoot);
+  if (fileSkillsRoot?.trim()) return path.resolve(fileSkillsRoot.trim());
+
+  const searchRoots = [
+    cwd,
+    process.env['INIT_CWD']?.trim(),
+    process.env['WORKSPACE_FOLDER']?.trim(),
+    process.env['VSCODE_CWD']?.trim(),
+  ].filter(Boolean) as string[];
+
+  for (const start of searchRoots) {
+    const discovered = discoverWorkspaceSkillsRoot(start);
+    if (discovered) return discovered;
+  }
+
+  return resolveBundledSkillsRoot() ?? path.join(cwd, '.agents', 'skills');
+}
+
 export function loadConfig(cwd: string, cliSkillRoot?: string): SkillingConfig {
   const file = loadFileConfig(cwd);
-  const envRoot =
-    process.env['SKILL_ROOT']?.trim() || process.env['SKILLING_SKILLS_ROOT']?.trim();
-  const skillsRoot = path.resolve(
-    cliSkillRoot || envRoot || file.skillsRoot || path.join(cwd, '.agents', 'skills'),
-  );
+  const skillsRoot = path.resolve(resolveSkillsRootPath(cwd, cliSkillRoot, file.skillsRoot));
   const skillsMetaDir = path.resolve(
     process.env['SKILLING_SKILLS_META_DIR']?.trim() ||
       file.skillsMetaDir ||

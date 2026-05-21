@@ -1,50 +1,153 @@
-# Cursor and VS Code — MCP host wiring
+# MCP host setup (all IDEs)
 
-Use **`docs/mcp-config.example.json`** as the shape of the `mcpServers` entry. Replace `<REPO>` with **absolute paths** on your machine.
+Skilling is a **stdio MCP server**. Any IDE or client that supports subprocess MCP can use it. Setup is automated — no `${workspaceFolder}` expansion, no manual Node PATH, no guessing config file locations.
 
-## Cursor
+## Quick start
 
-1. Open **Cursor Settings → MCP** (or add project-level **`.cursor/mcp.json`**).
-2. Merge the `Skilling` block from `mcp-config.example.json`.
-3. Set:
-   - `command`: `node` (or full path to `node.exe` on Windows if GUI apps lack PATH).
-   - `args`: `[ "<REPO>/Skilling/dist/index.js" ]` or add `"--skill-root", "<REPO>/Skilling/.agents/skills"`.
-   - `env.SKILL_ROOT`: `"<REPO>/.agents/skills"` (**canonical**).
-
-Restart MCP / reload window after edits.
-
-### Stale tool list
-
-After pulling:
+From your **project root** (where you want `.agents/skills/`):
 
 ```bash
-cd <REPO>/Skilling
-npm run build
-npm run smoke
+npm install skilling
+npx skilling setup
 ```
 
-Restart the `Skilling` MCP server in Cursor. You should see **`skill_plan`**, **`health`**, **`skill_list`** aliases, and lifecycle tools.
+Then **restart your IDE** so it loads the MCP server.
+
+What happens:
+
+1. **`npm install`** — postinstall seeds **`find-skills`** into `.agents/skills/` (non-destructive; skipped in CI and when installing globally).
+2. **`npx skilling setup`** — detects IDE markers, writes MCP configs with **absolute** `command` / `args`, merges without clobbering other servers.
+3. **Restart IDE** — MCP servers load at startup on most hosts.
+
+No prompts. No confirmations. One summary printed to the terminal.
+
+### Setup flags
+
+| Flag | Effect |
+|------|--------|
+| `--force` | Overwrite existing `skilling` MCP entries (after Node upgrade or project move) |
+| `--dry-run` | Show what would be written; touch no files |
+| `--help` | Usage |
+
+```bash
+npx skilling setup --force
+npx skilling setup --dry-run
+```
+
+---
+
+## Host compatibility
+
+| Host | Config file | Scope | Auto-configured |
+|------|-------------|-------|-----------------|
+| **Cursor** | `.cursor/mcp.json` | project | yes (when `.cursor/` exists) |
+| **VS Code Copilot** | `.vscode/mcp.json` | project | yes (when `.vscode/` exists) |
+| **Claude Code** | `.mcp.json` | project | yes (when project has `package.json` / `.git`) |
+| **Continue** | `.continue/mcpServers/skilling.json` | project | yes (drop-in file) |
+| **Amazon Q** | `.amazonq/default.json` | project | yes (when project markers exist) |
+| **Claude Desktop** | platform path¹ | global | yes |
+| **Windsurf** | `~/.codeium/windsurf/mcp_config.json` | global | yes (when Windsurf dir exists) |
+| **Zed** | `~/.config/zed/settings.json` | global | yes (when Zed dir exists) |
+| **JetBrains** | Settings UI | — | snippet printed (GUI-only) |
+
+¹ Claude Desktop: macOS `~/Library/Application Support/Claude/claude_desktop_config.json` · Windows `%APPDATA%\Claude\claude_desktop_config.json` · Linux `~/.config/claude-desktop/claude_desktop_config.json`
+
+### Config shape per host
+
+- **Most hosts** — root key `mcpServers`, entry `{ command, args }`
+- **VS Code / Claude Code** — root key `servers` or `mcpServers` with `"type": "stdio"`
+- **Zed** — root key `context_servers`
+- **Global hosts** — `env.SKILL_ROOT` set to your project's `.agents/skills` (absolute), because their cwd is not your workspace
+
+---
+
+## What `setup` does
+
+1. Resolves project root from `INIT_CWD` / cwd (walks up for `package.json` or `.git`)
+2. Seeds **`find-skills`** if missing
+3. Chooses launch mode:
+   - **Local install** (`node_modules/skilling` present): `command` = absolute Node (`process.execPath`), `args` = absolute `run-mcp.mjs`
+   - **No local install**: `command` = `npx`, `args` = `[-y, skilling@latest]`
+4. Walks the host registry; merges `skilling` entry into each detected config
+5. Prints JetBrains manual snippet and a per-host summary
+
+**SKILL_ROOT at runtime** (when MCP starts): `--skill-root` → `SKILL_ROOT` env → `skilling.config.json` → walk up from cwd for `.agents/skills` → bundled catalog. Literal `${workspaceFolder}` in env is ignored.
+
+---
+
+## Verify
+
+In your IDE or via CLI:
+
+**`list`** → **`skill_plan`** → **`begin_task`** → **`get_session`** → **`end_task`**
+
+From repo root (Skilling development):
+
+```bash
+npm run build
+npm run smoke
+npm run test:setup
+```
+
+See [`docs/MCP_TESTING.md`](MCP_TESTING.md).
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|----------------|-----|
+| `STORE_UNAVAILABLE` | Empty or missing `.agents/skills` | Re-run `npm install skilling` or `npx skilling setup` |
+| MCP not listed after setup | IDE not restarted | Quit and reopen the IDE |
+| Stale paths after Node upgrade | Old absolute paths in config | `npx skilling setup --force` |
+| `begin_task` validation error ~0.3x confidence | Weak heuristic match | Pass explicit `skill_id` or use `load` with `inject_mode: compact` |
 
 ### Selector and logging
 
-- **`SKILLING_SELECTOR`**: only **`heuristic`** is implemented today. Values `embedding` or `llm` log a one-time warning and fall back to heuristic.
-- **`SKILLING_SELECT_MIN_CONFIDENCE`**: minimum score to return a skill from `select` / `begin_task` (default `0.25`).
-- **`SKILLING_PLAN_MIN_CONFIDENCE`**: minimum score for a skill to appear in `skill_plan` `skills_needed` (default `0.35`). `begin_task` rejects auto-select below this when `low_confidence` applies.
-- **`SKILLING_LOG_PROMPTS=true`**: logs truncated prompt/goal snippets at debug level for `select`, `skill_plan`, and `begin_task` (stderr JSON lines).
+- **`SKILLING_SELECTOR`**: only **`heuristic`** is implemented today
+- **`SKILLING_SELECT_MIN_CONFIDENCE`**: default `0.25`
+- **`SKILLING_PLAN_MIN_CONFIDENCE`**: default `0.35`; `begin_task` rejects weak auto-select below this
+- **`SKILLING_LOG_PROMPTS=true`**: logs truncated prompts at debug level
 
-## VS Code
+---
 
-Use the same `mcpServers.skilling` object per your MCP extension’s JSON config.
+## Manual / advanced
 
-## Verify in the IDE
+If you prefer hand-written config, use [`docs/mcp-config.example.json`](mcp-config.example.json) as a template.
 
-**`list`** → **`skill_plan`** → **`begin_task`** → **`get_session`** → **`end_task`**.
+**Cursor / Claude Desktop / Windsurf** (`mcpServers`):
 
-CLI (no IDE): from repo root with `SKILL_ROOT` set:
-
-```powershell
-$env:SKILL_ROOT = "$PWD/.agents/skills"
-npm run smoke
+```json
+{
+  "mcpServers": {
+    "skilling": {
+      "command": "npx",
+      "args": ["-y", "skilling@latest"]
+    }
+  }
+}
 ```
 
-See **`docs/MCP_TESTING.md`**.
+**VS Code Copilot** (`servers` + `type`):
+
+```json
+{
+  "servers": {
+    "skilling": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "skilling@latest"]
+    }
+  }
+}
+```
+
+For **global hosts**, add absolute `SKILL_ROOT`:
+
+```json
+"env": { "SKILL_ROOT": "/absolute/path/to/your/project/.agents/skills" }
+```
+
+**Develop from source** — use `node` + absolute path to [`scripts/run-mcp.mjs`](../scripts/run-mcp.mjs) or build and point at `dist/index.js`.
+
+Regenerate Cursor MCP deeplink: `npm run deeplink`
