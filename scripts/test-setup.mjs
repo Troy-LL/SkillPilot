@@ -10,8 +10,10 @@ import { fileURLToPath } from 'node:url';
 import {
   HOST_REGISTRY,
   PKG_DIR,
+  SKILLING_RULES_HEADER,
   buildMcpLaunchEntry,
   buildServerConfigEntry,
+  canWriteRulesFile,
   formatEntry,
   hasSkillingEntry,
   mergeHostConfig,
@@ -19,6 +21,7 @@ import {
   runSetup,
   seedFindSkills,
   shouldSkipPostinstall,
+  writeHostRules,
 } from './setup-lib.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -324,6 +327,112 @@ await test('setup --dry-run writes nothing', async () => {
   } finally {
     await rmTemp(project);
     await rmTemp(home);
+  }
+});
+
+await test('setup without --write-rules does not modify existing rules files', async () => {
+  const project = await mkTemp('skilling-setup-no-rules-');
+  const home = await mkTemp('skilling-setup-home-no-rules-');
+  try {
+    await fsp.mkdir(path.join(project, '.vscode'), { recursive: true });
+    await fsp.mkdir(path.join(project, '.github'), { recursive: true });
+    const rulesPath = path.join(project, '.github', 'copilot-instructions.md');
+    await fsp.writeFile(rulesPath, '# Team instructions\nKeep this line.\n', 'utf8');
+    await fsp.mkdir(path.join(project, 'node_modules', 'skilling', 'scripts'), { recursive: true });
+    await fsp.writeFile(
+      path.join(project, 'node_modules', 'skilling', 'scripts', 'run-mcp.mjs'),
+      '// stub\n',
+      'utf8',
+    );
+
+    await runSetup(['--force'], {
+      projectRoot: project,
+      homeDir: home,
+      appData: path.join(home, 'AppData', 'Roaming'),
+      pkgDir: PKG_DIR,
+    });
+
+    const after = await fsp.readFile(rulesPath, 'utf8');
+    assert.equal(after, '# Team instructions\nKeep this line.\n');
+    assert.doesNotMatch(after, /Skilling MCP/);
+  } finally {
+    await rmTemp(project);
+    await rmTemp(home);
+  }
+});
+
+await test('setup --write-rules appends to existing copilot-instructions.md', async () => {
+  const project = await mkTemp('skilling-setup-write-rules-');
+  const home = await mkTemp('skilling-setup-home-write-rules-');
+  try {
+    await fsp.mkdir(path.join(project, '.vscode'), { recursive: true });
+    await fsp.mkdir(path.join(project, '.github'), { recursive: true });
+    const rulesPath = path.join(project, '.github', 'copilot-instructions.md');
+    await fsp.writeFile(rulesPath, '# Team instructions\n', 'utf8');
+    await fsp.mkdir(path.join(project, 'node_modules', 'skilling', 'scripts'), { recursive: true });
+    await fsp.writeFile(
+      path.join(project, 'node_modules', 'skilling', 'scripts', 'run-mcp.mjs'),
+      '// stub\n',
+      'utf8',
+    );
+
+    const host = hostById('vscode');
+    const ctx = { projectRoot: project, homeDir: home, appData: path.join(home, 'AppData', 'Roaming') };
+    const outcome = await writeHostRules(host, ctx, { writeRules: true });
+    assert.equal(outcome, 'written');
+
+    const after = await fsp.readFile(rulesPath, 'utf8');
+    assert.match(after, /# Team instructions/);
+    assert.match(after, new RegExp(SKILLING_RULES_HEADER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  } finally {
+    await rmTemp(project);
+    await rmTemp(home);
+  }
+});
+
+await test('setup --write-rules appends to existing Claude rules instead of overwriting', async () => {
+  const project = await mkTemp('skilling-setup-claude-rules-');
+  try {
+    await fsp.mkdir(path.join(project, '.claude', 'rules'), { recursive: true });
+    const rulesPath = path.join(project, '.claude', 'rules', 'skilling-lifecycle.md');
+    await fsp.writeFile(rulesPath, '# Custom team rules\nDo not remove.\n', 'utf8');
+
+    const host = hostById('claude-code');
+    const ctx = { projectRoot: project, homeDir: project, appData: project };
+    const outcome = await writeHostRules(host, ctx, { writeRules: true });
+    assert.equal(outcome, 'written');
+
+    const after = await fsp.readFile(rulesPath, 'utf8');
+    assert.match(after, /Custom team rules/);
+    assert.match(after, /Do not remove/);
+    assert.match(after, /Skilling MCP/);
+  } finally {
+    await rmTemp(project);
+  }
+});
+
+await test('canWriteRulesFile requires --write-rules flag', async () => {
+  const rulesPath = '/tmp/skilling-can-write/copilot-instructions.md';
+  assert.equal(canWriteRulesFile(rulesPath, false), false);
+  assert.equal(canWriteRulesFile(rulesPath, true), true);
+  assert.equal(canWriteRulesFile('', true), false);
+});
+
+await test('windsurf rules only run for project with .windsurf marker', async () => {
+  const project = await mkTemp('skilling-windsurf-rules-');
+  try {
+    const host = hostById('windsurf-rules');
+    const ctx = { projectRoot: project, homeDir: project, appData: project };
+    assert.equal(host.detect(ctx), false);
+
+    await fsp.mkdir(path.join(project, '.windsurf'), { recursive: true });
+    assert.equal(host.detect(ctx), true);
+
+    const outcome = await writeHostRules(host, ctx, { writeRules: true });
+    assert.equal(outcome, 'written');
+    assert.ok(fs.existsSync(path.join(project, '.windsurfrules')));
+  } finally {
+    await rmTemp(project);
   }
 });
 

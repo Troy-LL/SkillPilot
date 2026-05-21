@@ -259,8 +259,6 @@ export const HOST_REGISTRY = [
     writeMode: 'merge',
     rootKey: 'mcpServers',
     stdioType: false,
-    rulesMode: 'append',
-    rulesPath: (ctx) => path.join(ctx.projectRoot, '.windsurfrules'),
     rulesGlobalNote: true,
     detect: (ctx) => {
       const p = windsurfConfigPath(ctx.homeDir);
@@ -281,6 +279,20 @@ export const HOST_REGISTRY = [
       return fs.existsSync(p) || fs.existsSync(path.dirname(p));
     },
     configPath: (ctx) => zedConfigPath(ctx.homeDir),
+  },
+  {
+    id: 'windsurf-rules',
+    label: 'Windsurf rules',
+    scope: 'project',
+    writeMode: 'merge',
+    rootKey: 'mcpServers',
+    mcpConfig: false,
+    rulesMode: 'append',
+    rulesPath: (ctx) => path.join(ctx.projectRoot, '.windsurfrules'),
+    detect: (ctx) =>
+      fs.existsSync(path.join(ctx.projectRoot, '.windsurfrules')) ||
+      fs.existsSync(path.join(ctx.projectRoot, '.windsurf')),
+    configPath: () => '',
   },
   {
     id: 'jetbrains',
@@ -328,10 +340,8 @@ export function hasSkillingEntry(config, rootKey) {
  * @returns {boolean}
  */
 export function canWriteRulesFile(rulesPath, writeRules) {
-  if (!rulesPath) return false;
-  if (fs.existsSync(rulesPath)) return true;
-  if (writeRules && fs.existsSync(path.dirname(rulesPath))) return true;
-  return false;
+  if (!rulesPath || !writeRules) return false;
+  return true;
 }
 
 function rulesSectionPresent(content) {
@@ -349,29 +359,30 @@ function buildAppendedRules(content) {
  * @returns {'written' | 'skipped' | 'would-write'}
  */
 export async function writeHostRules(host, ctx, { writeRules = false, dryRun = false } = {}) {
-  if (!host.rulesPath || !host.rulesMode) return 'skipped';
+  if (!host.rulesPath || !host.rulesMode || !writeRules) return 'skipped';
+
   const rulesPath = host.rulesPath(ctx);
   if (!rulesPath || !canWriteRulesFile(rulesPath, writeRules)) return 'skipped';
-
-  if (host.rulesMode === 'write') {
-    if (fs.existsSync(rulesPath)) {
-      const existing = await fsp.readFile(rulesPath, 'utf8');
-      if (rulesSectionPresent(existing)) return 'skipped';
-    } else if (!writeRules) {
-      return 'skipped';
-    }
-    if (dryRun) return 'would-write';
-    await fsp.writeFile(rulesPath, `${SKILLING_LIFECYCLE_RULES.trim()}\n`, 'utf8');
-    return 'written';
-  }
 
   let existing = '';
   if (fs.existsSync(rulesPath)) {
     existing = await fsp.readFile(rulesPath, 'utf8');
+    if (rulesSectionPresent(existing)) return 'skipped';
   }
+
+  if (host.rulesMode === 'write' && !existing) {
+    if (dryRun) return 'would-write';
+    await fsp.mkdir(path.dirname(rulesPath), { recursive: true });
+    await fsp.writeFile(rulesPath, `${SKILLING_LIFECYCLE_RULES.trim()}\n`, 'utf8');
+    return 'written';
+  }
+
   const next = buildAppendedRules(existing);
   if (!next) return 'skipped';
   if (dryRun) return 'would-write';
+  if (!existing) {
+    await fsp.mkdir(path.dirname(rulesPath), { recursive: true });
+  }
   await fsp.writeFile(rulesPath, next, 'utf8');
   return 'written';
 }
@@ -422,6 +433,8 @@ export function detectReason(host) {
       return 'not a project directory';
     case 'windsurf':
       return 'Windsurf config dir absent';
+    case 'windsurf-rules':
+      return '.windsurfrules / .windsurf/ absent';
     case 'jetbrains':
       return '.junie/ absent';
     case 'zed':
@@ -530,19 +543,26 @@ export async function runSetup(argv = [], overrides = {}) {
   const rulesResults = [];
   const globalRulesHosts = [];
 
-  for (const host of HOST_REGISTRY) {
-    if (!host.detect(ctx)) continue;
-    if (host.rulesGlobalNote) globalRulesHosts.push(host);
-    if (!host.rulesPath || !host.rulesMode) continue;
-    try {
-      const outcome = await writeHostRules(host, ctx, {
-        writeRules: flags.writeRules,
-        dryRun: flags.dryRun,
-      });
-      rulesResults.push({ host, outcome, rulesPath: host.rulesPath(ctx) });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      rulesResults.push({ host, outcome: 'error', rulesPath: host.rulesPath(ctx), reason: msg });
+  if (flags.writeRules) {
+    for (const host of HOST_REGISTRY) {
+      if (!host.detect(ctx)) continue;
+      if (host.rulesGlobalNote) globalRulesHosts.push(host);
+      if (!host.rulesPath || !host.rulesMode) continue;
+      try {
+        const outcome = await writeHostRules(host, ctx, {
+          writeRules: flags.writeRules,
+          dryRun: flags.dryRun,
+        });
+        rulesResults.push({ host, outcome, rulesPath: host.rulesPath(ctx) });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        rulesResults.push({ host, outcome: 'error', rulesPath: host.rulesPath(ctx), reason: msg });
+      }
+    }
+  } else {
+    for (const host of HOST_REGISTRY) {
+      if (!host.detect(ctx)) continue;
+      if (host.rulesGlobalNote) globalRulesHosts.push(host);
     }
   }
 
@@ -554,13 +574,19 @@ export async function runSetup(argv = [], overrides = {}) {
     } else if (r.status === 'not-detected') {
       lines.push(`  [-]  ${r.host.label.padEnd(16)} not detected (${r.reason})`);
     } else if (r.status === 'rules-only') {
-      lines.push(`  [·]  ${r.host.label.padEnd(16)} rules only (MCP via Settings UI)`);
+      lines.push(
+        `  [·]  ${r.host.label.padEnd(16)} rules via --write-rules; MCP via Settings > Tools > AI Assistant > MCP`,
+      );
     } else {
       lines.push(`  [!]  ${r.host.label.padEnd(16)} ${r.reason}`);
     }
   }
 
-  if (rulesResults.length || globalRulesHosts.length) {
+  const rulesCapableDetected = HOST_REGISTRY.some(
+    (h) => h.detect(ctx) && h.rulesPath && h.rulesMode,
+  );
+
+  if (flags.writeRules && rulesResults.length) {
     lines.push('');
     lines.push('  Lifecycle rules:');
     for (const r of rulesResults) {
@@ -570,24 +596,40 @@ export async function runSetup(argv = [], overrides = {}) {
       } else if (r.outcome === 'error') {
         lines.push(`  [!]  ${r.host.label.padEnd(16)} ${r.reason}`);
       } else {
-        lines.push(
-          `  [-]  ${r.host.label.padEnd(16)} skipped (${rel}; use --write-rules when dir exists)`,
-        );
+        lines.push(`  [-]  ${r.host.label.padEnd(16)} skipped (${rel})`);
       }
     }
-    for (const host of globalRulesHosts) {
+  } else if (rulesCapableDetected) {
+    lines.push('');
+    lines.push('  Lifecycle rules: pass --write-rules to add Skilling workflow rules to IDE files.');
+  }
+
+  const hostsNeedingManualRules = globalRulesHosts.filter(
+    (host) =>
+      !rulesResults.some(
+        (r) =>
+          r.host.id === host.id && (r.outcome === 'written' || r.outcome === 'would-write'),
+      ),
+  );
+  if (hostsNeedingManualRules.length) {
+    lines.push('');
+    for (const host of hostsNeedingManualRules) {
       lines.push(`  [i]  ${host.label.padEnd(16)} add lifecycle rules to your system prompt:`);
       lines.push('       (see docs/HOST_MCP_SETUP.md — AI comprehension)');
     }
   }
 
-  lines.push('');
-  lines.push('  JetBrains — add via Settings > Tools > AI Assistant > MCP:');
-  lines.push(`    Command: ${launch.command}`);
-  lines.push(`    Args:    ${launch.args.join(' ')}`);
-  if (launch.mode === 'local') {
-    lines.push(`    Env:     SKILL_ROOT=${skillsDir}`);
+  const jetbrainsHost = HOST_REGISTRY.find((h) => h.id === 'jetbrains');
+  if (!jetbrainsHost?.detect(ctx)) {
+    lines.push('');
+    lines.push('  JetBrains — add via Settings > Tools > AI Assistant > MCP:');
+    lines.push(`    Command: ${launch.command}`);
+    lines.push(`    Args:    ${launch.args.join(' ')}`);
+    if (launch.mode === 'local') {
+      lines.push(`    Env:     SKILL_ROOT=${skillsDir}`);
+    }
   }
+
   lines.push('');
   lines.push('  Restart your IDE to load the MCP server.');
 

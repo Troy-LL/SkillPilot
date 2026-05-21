@@ -89,18 +89,31 @@ Skilling ships three layers so agents understand the workflow in any MCP-capable
 2. **Tool descriptions** — lifecycle tools (`begin_task`, `end_task`, `get_session`, `skill_plan`, `health`) describe when/why/what-next, not just mechanics.
 3. **`skilling_workflow` MCP prompt** — fetch on demand for the full orchestrator procedure (plan → implement → review, presentation rules, end/switch tasks).
 
-**Per-IDE rules files** — `npx skilling setup --write-rules` writes lifecycle rules when the target path or its parent directory already exists:
+**Per-IDE rules files** — pass **`--write-rules`** to write lifecycle rules (opt-in only; default setup never touches these files):
 
 | IDE | Rules file |
 |-----|------------|
 | VS Code | `.github/copilot-instructions.md` (appends `## Skilling MCP`) |
-| Claude Code | `.claude/rules/skilling-lifecycle.md` |
-| Windsurf | `.windsurfrules` (appends section) |
-| JetBrains | `.junie/guidelines.md` (appends section) |
+| Claude Code | `.claude/rules/skilling-lifecycle.md` (creates or appends — never overwrites custom content) |
+| Windsurf | `.windsurfrules` (appends section; only when `.windsurfrules` or `.windsurf/` exists in the project) |
+| JetBrains | `.junie/guidelines.md` (appends section; only when `.junie/` exists) |
 
 Cursor rules live at `.cursor/rules/skilling-lifecycle.mdc` (bundled with the plugin; setup does not overwrite them).
 
-**Manual setup** — for Claude Desktop, Zed, or other hosts without a standard rules file, paste the lifecycle rules block from [`docs/HOST_MCP_SETUP.md`](HOST_MCP_SETUP.md) or fetch the `skilling_workflow` MCP prompt into your system prompt / custom instructions.
+Default `npx skilling setup` does **not** write rules files — pass **`--write-rules`** explicitly.
+
+**Manual setup** — for Claude Desktop, Zed, or other hosts without a standard rules file, paste this block into your system prompt / custom instructions, or fetch the `skilling_workflow` MCP prompt:
+
+```markdown
+# Skilling MCP — lifecycle rules
+
+Workflow: skill_plan (optional) → begin_task → follow body → end_task.
+- Check get_session first; if active:true follow the existing session body.
+- Never invent skill_id. On VALIDATION_ERROR call list or pass skill_id explicitly.
+- find-skills only when the user wants to discover/install ecosystem skills.
+- list/select/load are debugging tools — not for routine task work.
+- end_task before switching topics or dev phases.
+```
 
 ---
 
