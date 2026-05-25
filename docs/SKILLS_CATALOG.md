@@ -38,6 +38,19 @@ Point **`env.SKILL_ROOT`** at **this repo’s `.agents/skills`** folder:
 
 See **`docs/mcp-config.example.json`**.
 
+## Reference catalog vs your project
+
+| Location | What it is |
+|----------|------------|
+| **This repo** (`SkillPilot` / `skilling` package) | Full **reference** catalog — MCP chunks, skill-creator, hooks, smoke tests. Shipped in the npm package for docs and benchmarks. |
+| **Your app repo** (empty `.agents/skills/`) | **Bootstrap only** — `find-skills` + `com-skilling-orchestrator` copied on first `list` / `begin_task`. Add more with `find-skills` or `npx skills add`. |
+
+If `SKILL_ROOT` points at the SkillPilot dev tree, auto-pick sees every reference skill. Prompts that mention **MCP**, **server**, or **TypeScript** can rank `mcp-builder-*` highly. That is expected in this repo; it is not what a minimal consumer project should load.
+
+**You do not need** `mcp-builder` in your own project unless you are building an MCP server. Remove extra folders from `.agents/skills/` or keep a dedicated `SKILL_ROOT` with only the skills you installed.
+
+Phase auto-pick (`begin_task(phase: plan|implement)`) **excludes MCP-tagged skills** unless the prompt mentions MCP explicitly; **`plan`** defaults to **`com-skilling-orchestrator`**.
+
 ## Bundled / project skills (`.agents/skills/`)
 
 | Skill id | Role |

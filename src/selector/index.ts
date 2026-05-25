@@ -28,4 +28,11 @@ export function getSelector(config: SkillingConfig): SkillSelector {
 }
 
 export * from './types.js';
-export { heuristicSelector, selectFromCandidates, planFromCandidates } from './heuristic.js';
+export {
+  filterCandidatesForPhaseAutoPick,
+  heuristicSelector,
+  isMcpDomainSkill,
+  planFromCandidates,
+  queryHasMcpAnchor,
+  selectFromCandidates,
+} from './heuristic.js';

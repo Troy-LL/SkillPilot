@@ -18,6 +18,7 @@ import {
   runCleanup,
   validateSkillIdForLoad,
 } from './task-lifecycle.js';
+import { BOOTSTRAP_SKILL_IDS, ensureBootstrapCatalog } from './catalog-bootstrap.js';
 import { formatIndexError, getSkillIndex } from './store.js';
 import { requireNonEmptyTrimmed } from './validate.js';
 
@@ -25,17 +26,19 @@ type ToolResult = ReturnType<typeof toolOk>;
 
 const LOW_LEVEL_TOOL_NOTE = ' Low-level tool — use for debugging or custom flows, not routine work.';
 
-const SERVER_INSTRUCTIONS = `Skilling is a portable context engine for AI coding agents. It shapes skill bodies to a token budget, injects them into task sessions, and evicts on end_task.
+const SERVER_INSTRUCTIONS = `Skilling is a portable context engine for AI coding agents. It shapes skill bodies to a token budget, injects them into task sessions, and evicts on end_task with a usage summary.
 
-Routing (agent + catalog): list → optional suggest_skills → agent picks skill_id from plan.
-Injection (Skilling MCP): begin_task(skill_id, token_budget) → follow body → end_task before next skill or topic.
+Typical multi-stage flow:
+1. begin_task(phase: plan, prompt: goal) — auto-picks planning skill when skill_id omitted
+2. Follow shaped body; end_task when plan stage is done
+3. begin_task(phase: implement, prompt: goal) — auto-picks implementation skill
+4. Follow body; end_task between stages; end_task(finalize: true) when done — returns usage_summary (what/where/why per skill)
 
-Do NOT rely on silent auto-routing for build tasks — always pass an explicit skill_id to begin_task.
-Discovery: begin_task(find-skills, token_budget=300). Implementation stages: token_budget=900.
+Empty project catalog: list still works — bootstrap seeds find-skills and orchestrator. Never stop because the folder looks empty; use phase: discovery or begin_task(skill_id: find-skills, token_budget: 300) to install more skills.
 
 Session SOT: .skilling/session.json and .skilling/active-body.md. Call get_session before begin_task if unsure.
 
-On errors: VALIDATION_ERROR on begin_task usually means pass skill_id (call list or suggest_skills first). STORE_UNAVAILABLE → health then npx skilling setup --force.
+On errors: STORE_UNAVAILABLE → health then npx skilling setup --force.
 
 Fetch the skilling_workflow prompt for the full lifecycle procedure.`;
 
@@ -43,11 +46,12 @@ const SKILLING_WORKFLOW_PROMPT = `# Skilling task lifecycle
 
 ## Procedure
 
-1. Call **list** when you need installed skill IDs (~280 tokens tier-0 catalog).
-2. For ecosystem discovery, call **begin_task** with \`skill_id: "find-skills"\` and \`token_budget: 300\` (~72 tokens shaped).
-3. **Agent picks skill_id** from your plan or the catalog. Optionally call **suggest_skills** for ranked hints (no inject).
-4. Per stage: **begin_task(skill_id, token_budget=900)** → follow shaped **body** → **end_task** (required before next skill or topic).
-5. Do **not** rely on silent auto-routing for build tasks.
+1. **Plan:** \`begin_task(phase: plan, prompt: goal)\` — omit skill_id; server auto-picks. Follow **body** → \`end_task\` when planning is done.
+2. **Implement:** \`begin_task(phase: implement, prompt: goal)\` — auto-pick or explicit skill_id. Follow **body** → \`end_task\` when the overall task is complete.
+3. **Discovery** (empty catalog): \`begin_task(phase: discovery)\` or \`skill_id: find-skills\`, \`token_budget: 300\`.
+4. **list** seeds bootstrap skills if the folder looked empty — never stop because the catalog is empty.
+
+Optional: **suggest_skills** for ranked hints without inject.
 
 ## Budget ladder
 
@@ -56,8 +60,6 @@ const SKILLING_WORKFLOW_PROMPT = `# Skilling task lifecycle
 | discovery / plan | 300 | summary |
 | implement | 900 | compact |
 
-Pass explicit \`inject_mode\` to override. Compact omits code blocks — use \`full\` when templates matter.
-
 ## User-facing presentation
 
 - After begin_task: reply with **one sentence** using \`summary\` from the tool or session.
@@ -65,20 +67,14 @@ Pass explicit \`inject_mode\` to override. Compact omits code blocks — use \`f
 
 ## End or switch tasks
 
-- **end_task** is required before switching topic or skill (uses \`.skilling/session.json\` when \`correlation_id\` is omitted).
-- \`end_previous: true\` (default on begin_task) clears session files — not necessarily all host context.
+- **end_task** when a stage or the whole task is done — returns **usage_summary** (what skill, where in workflow, why).
+- \`end_previous: true\` (default) ends prior stage usage entries when starting the next phase.
 - Do not read \`.agents/skills/\` directly when MCP tools are available (except \`.skilling/active-body.md\` bridge).
-
-## Deprecated
-
-- **skill_plan** — prefer agent planning + suggest_skills + begin_task(skill_id).
-- **select** — alias for suggest_skills (debugging only).
 
 ## Do not
 
-- Call **begin_task** without **skill_id**.
-- Skip **end_task** when moving to unrelated work.
-- Use find-skills routing when the user only wants ecosystem install — use **find-skills** skill body via begin_task.`;
+- Abandon work because **list** returned zero skills before bootstrap.
+- Skip **end_task** when moving to unrelated work.`;
 
 function toolError(code: SkillingErrorCode, message: string) {
   const payload = errorPayload(code, message);
@@ -205,17 +201,47 @@ async function runSuggest(
 async function runList(
   rootDisplay: string,
   config: SkillingConfig,
+  repoRoot: string,
   tags?: string[],
 ): Promise<ToolResult> {
+  const { seeded } = ensureBootstrapCatalog(repoRoot);
   const index = getSkillIndex(rootDisplay, config.skillsMetaDir);
-  if (!index.ok) return toolError('STORE_UNAVAILABLE', formatIndexError(index));
+  if (!index.ok) {
+    return toolOk({
+      skills: [],
+      catalog_status: 'unavailable',
+      bootstrap_skill_ids: [...BOOTSTRAP_SKILL_IDS],
+      seeded,
+      error: formatIndexError(index),
+      message:
+        'Skill catalog is not ready. Run npx skilling setup --force, then begin_task(phase: discovery) or begin_task(skill_id: find-skills, token_budget: 300). Do not stop — install skills and continue.',
+      setup_hint: 'npx skilling setup --force',
+    });
+  }
   let skills = index.skills;
   if (tags?.length) {
     const tagSet = new Set(tags.map((t) => t.toLowerCase()));
     skills = skills.filter((s) => s.tags?.some((t) => tagSet.has(t.toLowerCase())));
   }
+  if (skills.length === 0) {
+    logToolOk('skill_list', { count: 0, catalog_status: 'empty' });
+    return toolOk({
+      skills: [],
+      catalog_status: 'empty',
+      bootstrap_skill_ids: [...BOOTSTRAP_SKILL_IDS],
+      seeded,
+      message:
+        'No additional skills installed yet. Call begin_task(phase: discovery) or begin_task(skill_id: find-skills, token_budget: 300) to add skills from the ecosystem. Bootstrap skills (find-skills, orchestrator) are available for planning and discovery.',
+      setup_hint: 'npx skilling setup --force',
+    });
+  }
   logToolOk('skill_list', { count: skills.length });
-  return toolOk({ skills });
+  return toolOk({
+    skills,
+    catalog_status: 'ready',
+    skill_count: skills.length,
+    ...(seeded.length ? { seeded } : {}),
+  });
 }
 
 async function runLoad(
@@ -256,13 +282,13 @@ export function createSkillingServer(skillRoot: string, config: SkillingConfig):
   );
 
   const listHandler = async (input?: { tags?: string[] }) =>
-    runList(rootDisplay, config, input?.tags);
+    runList(rootDisplay, config, repoRoot, input?.tags);
 
   mcp.registerTool(
     'list',
     {
       description:
-        'Official tier-0 catalog: list installed skills (id, title, summary, tags). Use when you need valid skill_ids for begin_task. ~280 tokens.',
+        'Tier-0 catalog: installed skills (id, title, summary, tags). Auto-seeds bootstrap skills if empty. catalog_status empty|ready — always continue with begin_task(phase: plan|discovery). ~280 tokens.',
       inputSchema: {
         tags: z
           .array(z.string())
@@ -539,15 +565,35 @@ export function createSkillingServer(skillRoot: string, config: SkillingConfig):
       },
     },
     async () => {
+      const { seeded } = ensureBootstrapCatalog(repoRoot);
       const index = getSkillIndex(rootDisplay, config.skillsMetaDir);
-      if (!index.ok) return toolError('STORE_UNAVAILABLE', formatIndexError(index));
+      if (!index.ok) {
+        return toolOk({
+          ok: false,
+          catalog_status: 'unavailable',
+          bootstrap_skill_ids: [...BOOTSTRAP_SKILL_IDS],
+          seeded,
+          skills_root: rootDisplay,
+          error: formatIndexError(index),
+          setup_hint: 'npx skilling setup --force',
+        });
+      }
       return toolOk({
         ok: true,
         skill_count: index.skills.length,
+        catalog_status: index.skills.length > 0 ? 'ready' : 'empty',
         skills_root: rootDisplay,
         skills_meta_dir: config.skillsMetaDir,
+        bootstrap_skill_ids: [...BOOTSTRAP_SKILL_IDS],
+        ...(seeded.length ? { seeded } : {}),
+        ...(index.skills.length === 0
+          ? {
+              message:
+                'Bootstrap only. Use begin_task(phase: discovery) or begin_task(skill_id: find-skills, token_budget: 300) to grow the catalog.',
+            }
+          : {}),
         setup_hint:
-          'Set SKILL_ROOT to an absolute .agents/skills path, or run npx skilling setup --force. Optional: SKILLS_META_DIR for overlay YAML.',
+          'Set SKILL_ROOT to an absolute .agents/skills path, or run npx skilling setup --force.',
       });
     },
   );
@@ -582,18 +628,21 @@ export function createSkillingServer(skillRoot: string, config: SkillingConfig):
     'begin_task',
     {
       description:
-        'Inject-only: requires skill_id. Shapes skill body within token_budget and opens a session. Returns body (follow it), token_estimate, correlation_id. Call list or suggest_skills first to pick skill_id. Required: end_task before next skill or topic.',
+        'Start a task stage: shapes skill body within token_budget and opens a session. Pass skill_id OR phase (discovery|plan|implement|review) to auto-pick via suggest_skills. Returns body (follow it). Call end_task when the stage or overall task is done — end_task returns usage_summary.',
       inputSchema: {
         prompt: z.string(),
         goal: z.string().optional(),
         context: z.string().optional(),
         client: z.string().optional(),
         workspace_path: z.string().optional(),
-        skill_id: z.string().describe('Required — call list or suggest_skills to choose'),
+        skill_id: z
+          .string()
+          .optional()
+          .describe('Optional when phase is set — server auto-picks top match'),
         phase: z
           .string()
           .optional()
-          .describe('plan|discovery → budget 300; implement → budget 900 when token_budget omitted'),
+          .describe('discovery|plan|implement|review — auto-picks skill when skill_id omitted'),
         token_budget: z
           .number()
           .int()
@@ -626,9 +675,19 @@ export function createSkillingServer(skillRoot: string, config: SkillingConfig):
     'end_task',
     {
       description:
-        'Required after every stage completes or before switching skill/topic. Cleans correlation registry and clears .skilling/session.json + active-body.md. Idempotent when correlation_id is passed. end_previous on begin_task clears session files but not necessarily all host context.',
+        'Required when a stage or the overall task is complete, and before switching unrelated topics. Clears session files and returns usage_summary (skills used, where, why). Optional reason for completion note.',
       inputSchema: {
         correlation_id: z.string().uuid().optional(),
+        reason: z
+          .string()
+          .optional()
+          .describe('Optional note when the overall task is complete (included in usage_summary)'),
+        finalize: z
+          .boolean()
+          .optional()
+          .describe(
+            'When true, clears usage-log after summary. Use on the last end_task of a multi-phase task.',
+          ),
       },
       annotations: {
         readOnlyHint: false,
@@ -637,9 +696,14 @@ export function createSkillingServer(skillRoot: string, config: SkillingConfig):
         openWorldHint: false,
       },
     },
-    async ({ correlation_id }) => {
+    async ({ correlation_id, reason, finalize }) => {
       try {
-        return toolOk(endTask(repoRoot, correlation_id) as unknown as Record<string, unknown>);
+        return toolOk(
+          endTask(repoRoot, { correlation_id, reason, finalize }) as unknown as Record<
+            string,
+            unknown
+          >,
+        );
       } catch (e) {
         return handleError('end_task', e);
       }

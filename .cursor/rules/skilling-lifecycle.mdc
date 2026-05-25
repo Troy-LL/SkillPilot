@@ -1,5 +1,5 @@
 ---
-description: Skilling MCP lifecycle — list, suggest_skills, begin_task(skill_id), end_task. Do not read skills/ directly.
+description: Skilling MCP lifecycle — phase begin_task, end_task usage_summary. Do not read skills/ directly.
 alwaysApply: true
 ---
 
@@ -11,13 +11,21 @@ Use the **Skilling** MCP server for procedural skills. Do not read `skills/**/SK
 
 1. If **`.skilling/active-body.md`** exists, follow it for this turn.
 2. Else call **`get_session`**; if `active: false`:
-   - **`list`** when you need installed skill IDs
-   - Optionally **`suggest_skills`** for ranked hints (no inject)
-   - **`begin_task(skill_id, token_budget)`** with an explicit **`skill_id`** (300 discovery, 900 implement)
+   - **`begin_task(phase: plan, prompt: goal)`** for planning (omit `skill_id` — server auto-picks)
+   - **`begin_task(phase: implement, prompt: goal)`** for implementation
+   - Empty catalog: **`list`** still works (bootstrap seeds find-skills + orchestrator) — never stop because the folder looked empty
 3. Follow skill **`body`** until the stage is done.
-4. **`end_task`** before switching topic or skill (required).
+4. **`end_task`** when a stage ends (session cleared; usage log kept). On the **last** stage, **`end_task(finalize: true)`** — read **`usage_summary`** then log is cleared.
 
-Do **not** call **`begin_task`** without **`skill_id`**. Do not rely on silent auto-routing for build tasks.
+## Multi-phase flow
+
+| Phase | begin_task | end_task |
+|-------|------------|----------|
+| Plan | `phase: plan`, token_budget 300 | When plan is done |
+| Implement | `phase: implement`, token_budget 900 | When overall task is done (returns usage_summary) |
+| Discovery | `phase: discovery` or `skill_id: find-skills` | After installing skills |
+
+`end_previous: true` (default) closes the prior stage in the usage log when starting the next phase.
 
 ## Autonomous hook (opt-in only)
 
@@ -28,6 +36,7 @@ When active, the hook writes **`.skilling/session.json`** and **`.skilling/activ
 ## User-facing presentation
 
 - After `begin_task`: **one sentence** using `summary` — never show skill menus, `candidates`, or raw score tables.
+- After final `end_task`: summarize **`usage_summary.message`** in plain language (skills used and why).
 
 ## End or switch tasks
 
@@ -36,8 +45,8 @@ When active, the hook writes **`.skilling/session.json`** and **`.skilling/activ
 
 ## Catalog vs discovery
 
-- **`list`** — official tier-0 catalog for picking `skill_id`
-- **`begin_task(find-skills, 300)`** — ecosystem discovery SOP
+- **`list`** — tier-0 catalog; auto-seeds bootstrap if empty
+- **`begin_task(phase: discovery)`** — ecosystem discovery SOP
 - [docs/SKILLS_CATALOG.md](docs/SKILLS_CATALOG.md) when the user wants catalog growth
 
 ## Debugging only

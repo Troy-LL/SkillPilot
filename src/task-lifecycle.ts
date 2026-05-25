@@ -9,8 +9,17 @@ import {
 import { SkillingError } from './errors.js';
 import { logToolOk } from './observability.js';
 import type { SkillFrontMatter } from './parse.js';
+import { ensureBootstrapCatalog } from './catalog-bootstrap.js';
 import { resolveRepoRoot } from './repo-root.js';
+import { filterCandidatesForPhaseAutoPick, getSelector } from './selector/index.js';
 import type { SelectResult } from './selector/types.js';
+import {
+  appendUsageEpisode,
+  buildUsageSummary,
+  clearUsageLog,
+  closeActiveUsageEpisode,
+  type UsageSummary,
+} from './usage-log.js';
 import { resolveInjectMode, shapeSkillBody, type InjectMode, type ShapeBodyResult } from './shape-body.js';
 import {
   clearSession,
@@ -23,7 +32,7 @@ import {
   writeSession,
 } from './session-store.js';
 import { buildSessionSummary, promptFingerprint } from './session-summary.js';
-import { loadSkillBody } from './store.js';
+import { formatIndexError, getSkillIndex, loadSkillBody } from './store.js';
 import { isValidSkillId } from './validate.js';
 
 const correlationRegistry = new CorrelationRegistry();
@@ -44,13 +53,16 @@ export type LoadEpisodeResult = {
   omitted_code_blocks?: number;
 };
 
+const PHASE_AUTO_PICK = new Set(['discovery', 'plan', 'implement', 'review']);
+
 export type BeginTaskInput = {
   prompt: string;
   goal?: string;
   context?: string;
   client?: string;
   workspace_path?: string;
-  skill_id: string;
+  /** Omit when phase is discovery|plan|implement|review — server auto-picks via suggest_skills. */
+  skill_id?: string;
   phase?: string;
   token_budget?: number;
   inject_mode?: InjectMode;
@@ -62,6 +74,7 @@ export type BeginTaskResultFull = LoadEpisodeResult &
   Pick<SelectResult, 'confidence' | 'rationale' | 'warnings' | 'alternatives'> & {
     summary: string;
     previous_ended: boolean;
+    auto_selected?: boolean;
   };
 
 export type BeginTaskResult = Omit<BeginTaskResultFull, 'alternatives'> &
@@ -72,6 +85,15 @@ export type EndTaskResult = {
   correlation_id: string;
   skill_id?: string;
   evicted_at?: string;
+  usage_summary?: UsageSummary;
+};
+
+export type EndTaskOptions = {
+  correlation_id?: string;
+  /** Optional note from the agent when the overall task is complete. */
+  reason?: string;
+  /** When true, clears `.skilling/usage-log.json` after returning usage_summary. Use for the final stage only. */
+  finalize?: boolean;
 };
 
 export type GetSessionOptions = {
@@ -112,6 +134,87 @@ function resolveTokenBudget(input: BeginTaskInput, config: SkillingConfig): numb
   const phase = input.phase?.trim().toLowerCase();
   if (phase === 'plan' || phase === 'discovery') return DISCOVERY_TOKEN_BUDGET;
   return config.defaultTokenBudget;
+}
+
+function resolveSkillForBegin(
+  skillRoot: string,
+  repoRoot: string,
+  config: SkillingConfig,
+  input: BeginTaskInput,
+): { skillId: string; selectExtras: SelectResult; auto_selected: boolean } {
+  const explicit = input.skill_id?.trim();
+  if (explicit) {
+    return {
+      skillId: explicit,
+      selectExtras: {
+        skill_id: explicit,
+        confidence: 1,
+        rationale: 'skill_id provided by caller',
+      },
+      auto_selected: false,
+    };
+  }
+
+  const phase = input.phase?.trim().toLowerCase();
+  if (!phase || !PHASE_AUTO_PICK.has(phase)) {
+    throw new SkillingError(
+      'VALIDATION_ERROR',
+      'begin_task requires skill_id or phase (discovery, plan, implement, review). Call list for catalog ids.',
+    );
+  }
+
+  ensureBootstrapCatalog(repoRoot);
+  const index = getSkillIndex(skillRoot, config.skillsMetaDir);
+  if (!index.ok) throw new SkillingError('STORE_UNAVAILABLE', formatIndexError(index));
+
+  const trimmedPrompt = input.prompt.trim() || input.goal!.trim();
+  const autoPickPool = filterCandidatesForPhaseAutoPick([...index.metas.values()], phase, {
+    prompt: trimmedPrompt,
+    goal: input.goal?.trim(),
+    context: input.context?.trim(),
+  });
+  const selector = getSelector(config);
+  const result = selector.select(autoPickPool, {
+    prompt: trimmedPrompt,
+    goal: input.goal?.trim(),
+    context: input.context?.trim(),
+    client: input.client?.trim(),
+    workspace_path: input.workspace_path?.trim(),
+    select_max_tokens: resolveTokenBudget(input, config),
+  });
+
+  if (result.skill_id) {
+    return { skillId: result.skill_id, selectExtras: result, auto_selected: true };
+  }
+
+  if (phase === 'plan' && index.metas.has('com-skilling-orchestrator')) {
+    return {
+      skillId: 'com-skilling-orchestrator',
+      selectExtras: {
+        skill_id: 'com-skilling-orchestrator',
+        confidence: 1,
+        rationale: 'Default planning skill for phase: plan (workflow SOP, not domain MCP chunks).',
+      },
+      auto_selected: true,
+    };
+  }
+
+  if (phase === 'discovery' && index.metas.has('find-skills')) {
+    return {
+      skillId: 'find-skills',
+      selectExtras: {
+        skill_id: 'find-skills',
+        confidence: 1,
+        rationale: 'Default bootstrap skill for discovery phase.',
+      },
+      auto_selected: true,
+    };
+  }
+
+  throw new SkillingError(
+    'VALIDATION_ERROR',
+    `${result.rationale} For an empty catalog, call begin_task(phase: discovery) or begin_task(skill_id: find-skills, token_budget: 300) first.`,
+  );
 }
 
 function ttlMsFromMeta(meta: { ttl_seconds?: number }, config: SkillingConfig): number {
@@ -261,29 +364,26 @@ export function beginTask(
     );
   }
 
-  const skillId = input.skill_id?.trim();
-  if (!skillId) {
-    throw new SkillingError(
-      'VALIDATION_ERROR',
-      'begin_task requires skill_id. Call list or suggest_skills to pick a skill, then retry with an explicit skill_id.',
-    );
-  }
+  ensureBootstrapCatalog(repoRoot);
+
+  const { skillId, selectExtras, auto_selected } = resolveSkillForBegin(
+    skillRoot,
+    repoRoot,
+    config,
+    input,
+  );
 
   const err = validateSkillIdForLoad(skillId);
   if (err) throw new SkillingError('VALIDATION_ERROR', err);
 
   const responseDetail: ResponseDetail = input.response_detail ?? 'summary';
   const tokenBudget = resolveTokenBudget(input, config);
-  const selectExtras: SelectResult = {
-    skill_id: skillId,
-    confidence: 1,
-    rationale: 'skill_id provided by caller',
-  };
 
   let previous_ended = false;
   if (input.end_previous !== false) {
     const prev = readSession(repoRoot);
     if (prev?.correlation_id) {
+      closeActiveUsageEpisode(repoRoot, prev.correlation_id);
       if (isSessionActive(prev)) {
         runCleanup(prev.correlation_id);
         previous_ended = true;
@@ -315,12 +415,23 @@ export function beginTask(
   writeSession(repoRoot, sessionPayload);
   writeActiveBody(repoRoot, episode.skill_id, episode.body);
 
+  appendUsageEpisode(repoRoot, {
+    skill_id: episode.skill_id,
+    title: episode.title,
+    phase: input.phase?.trim(),
+    rationale: selectExtras.rationale,
+    summary,
+    started_at: sessionPayload.started_at,
+    correlation_id: episode.correlation_id,
+  });
+
   const full: BeginTaskResultFull = {
     ...episode,
     confidence: selectExtras.confidence,
     rationale: selectExtras.rationale,
     summary,
     previous_ended,
+    ...(auto_selected ? { auto_selected: true } : {}),
   };
 
   return shapeBeginTaskResult(full, responseDetail);
@@ -328,10 +439,12 @@ export function beginTask(
 
 export function endTask(
   repoRoot: string,
-  correlation_id?: string,
+  options?: EndTaskOptions | string,
 ): EndTaskResult & { skill_id?: string } {
+  const opts: EndTaskOptions =
+    typeof options === 'string' ? { correlation_id: options } : (options ?? {});
   const session = readSession(repoRoot);
-  const passedId = correlation_id?.trim();
+  const passedId = opts.correlation_id?.trim();
   if (session && passedId && passedId !== session.correlation_id) {
     throw new SkillingError(
       'VALIDATION_ERROR',
@@ -345,9 +458,14 @@ export function endTask(
       'No active session. Call begin_task first or pass correlation_id from the load response.',
     );
   }
+  if (session) {
+    closeActiveUsageEpisode(repoRoot, session.correlation_id);
+  }
   const result = runCleanup(id);
   clearSession(repoRoot);
-  return { ...result, skill_id: session?.skill_id };
+  const usage_summary = buildUsageSummary(repoRoot, opts.reason);
+  if (opts.finalize) clearUsageLog(repoRoot);
+  return { ...result, skill_id: session?.skill_id, usage_summary };
 }
 
 export function getSession(

@@ -28,12 +28,14 @@ Path: **`.skilling/session.json`** at the repo root (gitignored). Written by **`
 | Tool | Role |
 |------|------|
 | **`skill_plan`** | Tier-1-only plan + `skills_needed` before multi-phase work |
-| **`begin_task`** | `select` (unless `skill_id`) + shaped `load` + write session + **`.skilling/active-body.md`** bridge; `token_budget`, `phase` |
-| **`end_task`** | `cleanup` + clear session |
+| **`begin_task`** | Shaped `load` + session + **`.skilling/active-body.md`**; optional `phase` (discovery\|plan\|implement\|review) auto-picks `skill_id`; bootstraps empty catalogs |
+| **`end_task`** | `cleanup` + clear session + **`usage_summary`** (skills used, where, why) + clear `.skilling/usage-log.json` |
 | **`get_session`** | Read active episode or `{ active: false }` (inactive when TTL expired — clears stale session files, same as auto-begin hook). `include_body` shapes skill text read-only (no new correlation_id). |
 | `list` / `skill_list`, `select`, `load`, `health` | Debugging and catalog checks |
 
-**SKILL_ROOT:** **`.agents/skills/`** for this repo. **Typical flow:** `skill_plan` (optional) → `begin_task` → work → `end_task`.
+**SKILL_ROOT:** **`.agents/skills/`** for this repo. **Typical flow:** `begin_task(phase: plan)` → work → `end_task` → `begin_task(phase: implement)` → work → `end_task` (usage summary).
+
+**Empty catalog:** `list` / `health` call `ensureBootstrapCatalog` — copies `find-skills` and `com-skilling-orchestrator` from the package into `.agents/skills/` so agents never dead-end on an empty folder.
 
 ### Cursor rules
 

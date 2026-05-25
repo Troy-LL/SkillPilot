@@ -24,6 +24,13 @@ npm run pack:check
 npm publish --access public
 ```
 
+### 2.2.0 release (bootstrap + phased lifecycle)
+
+- **Bootstrap catalog**: `list` / `health` / `begin_task` seed `find-skills` + `com-skilling-orchestrator` into empty `.agents/skills/`
+- **`begin_task(phase)`**: optional `skill_id` for `discovery|plan|implement|review`; plan defaults to orchestrator; MCP skills excluded unless prompt mentions MCP
+- **`end_task`**: `usage_summary` (what/where/why); `finalize: true` clears usage log after multi-phase work
+- Softer empty `list` response (`catalog_status`, actionable `message`)
+
 ### 2.1.1 release (routing polish)
 
 - **`suggest_skills`**: no longer returns `weak_candidates` — use `candidates[]` and pick from `list` / plan

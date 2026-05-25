@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { SkillFrontMatter } from '../parse.js';
-import { planFromCandidates, selectFromCandidates } from './heuristic.js';
+import {
+  filterCandidatesForPhaseAutoPick,
+  planFromCandidates,
+  selectFromCandidates,
+} from './heuristic.js';
 
 const review: SkillFrontMatter = {
   id: 'com-skilling-code-review',
@@ -199,6 +203,15 @@ describe('selectFromCandidates', () => {
       prompt: 'typescript node tool script',
     });
     assert.equal(r.skill_id, 'typescript-cli');
+  });
+
+  it('plan phase auto-pick pool prefers orchestrator over mcp chunks', () => {
+    const pool = filterCandidatesForPhaseAutoPick(mcpCatalog, 'plan', {
+      prompt: 'fix the begin_task routing bug in SkillPilot',
+    });
+    assert.equal(pool.length, 1);
+    assert.equal(pool[0]!.id, 'com-skilling-orchestrator');
+    assert.equal(pool[0]!.id, 'com-skilling-orchestrator');
   });
 
   it('still picks MCP builder when query mentions mcp explicitly', () => {

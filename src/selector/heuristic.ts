@@ -31,12 +31,17 @@ function injectableCandidates(candidates: SkillFrontMatter[]): SkillFrontMatter[
   return candidates.filter((m) => m.inject !== false);
 }
 
-function isMcpSkill(meta: SkillFrontMatter): boolean {
+export function isMcpDomainSkill(meta: SkillFrontMatter): boolean {
   if (meta.tags?.includes('mcp')) return true;
   return meta.id.includes('-mcp-') || meta.id.startsWith('mcp-') || meta.id.endsWith('-mcp');
 }
 
-function queryHasMcpAnchor(queryLower: string, tokens: Set<string>): boolean {
+/** @deprecated use isMcpDomainSkill */
+function isMcpSkill(meta: SkillFrontMatter): boolean {
+  return isMcpDomainSkill(meta);
+}
+
+export function queryHasMcpAnchor(queryLower: string, tokens: Set<string>): boolean {
   if (queryLower.includes('model context protocol')) return true;
   return tokens.has('mcp');
 }
@@ -155,6 +160,40 @@ function scorePool(
       if (b.confidence !== a.confidence) return b.confidence - a.confidence;
       return a.meta.id.localeCompare(b.meta.id);
     });
+}
+
+const ORCHESTRATOR_ID = 'com-skilling-orchestrator';
+
+/**
+ * Narrow auto-pick pool for begin_task(phase: …) so generic dev prompts do not inject MCP catalog skills.
+ */
+export function filterCandidatesForPhaseAutoPick(
+  candidates: SkillFrontMatter[],
+  phase: string,
+  options: Pick<SelectOptions, 'prompt' | 'goal' | 'context'>,
+): SkillFrontMatter[] {
+  const p = phase.trim().toLowerCase();
+  const combined = [options.prompt, options.goal, options.context].filter(Boolean).join(' ');
+  const queryLower = combined.toLowerCase();
+  const tokens = new Set(tokenize(combined));
+  let pool = injectableCandidates(candidates);
+
+  if (p === 'discovery') {
+    const findOnly = pool.filter((m) => m.id === 'find-skills');
+    return findOnly.length > 0 ? findOnly : pool;
+  }
+
+  const mcpAnchor = queryHasMcpAnchor(queryLower, tokens);
+  if ((p === 'plan' || p === 'implement' || p === 'review') && !mcpAnchor) {
+    pool = pool.filter((m) => !isMcpDomainSkill(m));
+  }
+
+  if (p === 'plan') {
+    const orch = pool.find((m) => m.id === ORCHESTRATOR_ID);
+    if (orch) return [orch];
+  }
+
+  return pool.length > 0 ? pool : injectableCandidates(candidates);
 }
 
 export function selectFromCandidates(

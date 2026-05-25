@@ -12,6 +12,8 @@ import {
   resolveSessionPath,
   writeSession,
 } from './session-store.js';
+import { BOOTSTRAP_SKILL_IDS } from './catalog-bootstrap.js';
+import { resolveUsageLogPath } from './usage-log.js';
 import { beginTask, endTask, getCorrelationRegistrySize, getSession, loadSkillEpisode } from './task-lifecycle.js';
 
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -57,20 +59,66 @@ describe('task-lifecycle', () => {
     }
   });
 
-  it('beginTask rejects missing skill_id', () => {
+  it('beginTask rejects missing skill_id without phase', () => {
     const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-no-id-'));
     try {
       assert.throws(
         () =>
           beginTask(agentsSkills, repo, config, {
             prompt: 'build something',
-            skill_id: '',
           }),
         (e: unknown) =>
           e instanceof SkillingError &&
           e.code === 'VALIDATION_ERROR' &&
-          e.message.includes('requires skill_id'),
+          e.message.includes('skill_id or phase'),
       );
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it('beginTask phase discovery auto-picks find-skills in empty repo', () => {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-autopick-'));
+    const emptySkills = path.join(repo, '.agents', 'skills');
+    fs.mkdirSync(emptySkills, { recursive: true });
+    try {
+      const result = beginTask(emptySkills, repo, config, {
+        prompt: 'discover skills for testing',
+        phase: 'discovery',
+      });
+      assert.equal(result.skill_id, 'find-skills');
+      assert.equal(result.auto_selected, true);
+      for (const id of BOOTSTRAP_SKILL_IDS) {
+        assert.ok(fs.existsSync(path.join(emptySkills, id, 'SKILL.md')));
+      }
+      endTask(repo);
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it('endTask returns usage_summary across two phases', () => {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'Skilling-task-usage-'));
+    try {
+      beginTask(agentsSkills, repo, config, {
+        prompt: 'plan the feature',
+        phase: 'plan',
+        skill_id: 'com-skilling-orchestrator',
+      });
+      endTask(repo);
+
+      beginTask(agentsSkills, repo, config, {
+        prompt: 'implement the feature',
+        phase: 'implement',
+        skill_id: 'com-skilling-orchestrator',
+      });
+      const ended = endTask(repo, { reason: 'feature shipped', finalize: true });
+      assert.ok(ended.usage_summary);
+      assert.equal(ended.usage_summary!.episodes.length, 2);
+      assert.ok(ended.usage_summary!.skills_used.includes('com-skilling-orchestrator'));
+      assert.match(ended.usage_summary!.message, /planning stage|implementation stage/i);
+      assert.match(ended.usage_summary!.message, /feature shipped/);
+      assert.equal(fs.existsSync(resolveUsageLogPath(repo)), false);
     } finally {
       fs.rmSync(repo, { recursive: true, force: true });
     }
